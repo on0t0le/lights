@@ -1,0 +1,202 @@
+/*
+  Theme is expressed as CSS custom properties so later phases can shift the
+  whole interface (warm/soft -> washed-out/sterile) by changing variables,
+  not rewriting markup. See docs/specification.md "UI Evolution".
+*/
+:root {
+  --bg-sky-top: #1a1330;
+  --bg-sky-bottom: #2d1f4a;
+  --panel-bg: #1e1830;
+  --panel-border: #4a3d6b;
+  --text-primary: #f0e6ff;
+  --text-secondary: #b8a8d8;
+  --accent-warm: #ffb347;
+  --shadow-strength: 1;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg-sky-bottom);
+  color: var(--text-primary);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.scene {
+  width: 100%;
+  max-height: 50vh;
+  display: block;
+}
+
+.panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 2px calc(6px * var(--shadow-strength)) rgba(0, 0, 0, 0.4);
+}
+
+.resource-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.95rem;
+}
+
+.buildings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.building-button {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 0.6rem 0.9rem;
+  cursor: pointer;
+  text-align: left;
+  min-width: 140px;
+}
+
+.building-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.building-button .name {
+  font-weight: 600;
+  display: block;
+}
+
+.building-button .meta {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+/* Mid-game (City): the spec calls for buttons that start to blend together
+   as the interface washes out - lower contrast between button and panel. */
+.phase-city .building-button {
+  border-color: var(--text-secondary);
+  opacity: 0.92;
+}
+
+.research-panel,
+.event-panel,
+.priority-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.research-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--accent-warm);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 0.6rem 0.9rem;
+  cursor: pointer;
+  text-align: left;
+  min-width: 140px;
+}
+
+.research-card:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.research-card .name {
+  font-weight: 600;
+  display: block;
+}
+
+.research-card .meta {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.event-card {
+  background: var(--panel-bg);
+  border: 1px dashed var(--accent-warm);
+  border-radius: 6px;
+  padding: 0.6rem 0.9rem;
+  min-width: 200px;
+}
+
+.event-card .name {
+  font-weight: 600;
+  display: block;
+}
+
+.event-card .meta {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.priority-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  min-width: 140px;
+}
+
+/* Late game (Phase 4-5): spec - "Almost white interface. Buttons blend
+   together... Everything feels sterile." Push every panel/button toward
+   indistinguishable near-white, on top of the gradual --shadow-strength
+   wash theme.ts already drives. */
+.phase-sterile {
+  --panel-border: #e8e4f0;
+  --text-secondary: #d8d2e8;
+  --accent-warm: #e8e4f0;
+}
+
+.phase-sterile .panel,
+.phase-sterile .building-button,
+.phase-sterile .research-card {
+  background: #f4f2fa;
+  color: #2a2438;
+  box-shadow: none;
+}
+
+/* Ending 2 (Balance): spec - "the interface becomes beautiful again." */
+.ending-balance {
+  --bg-sky-bottom: #2d1f4a;
+  --shadow-strength: 1;
+}
+
+.ending-overlay {
+  display: none;
+  text-align: center;
+  padding: 1.5rem 1rem;
+  font-size: 1.1rem;
+  font-style: italic;
+  color: var(--text-primary);
+}
+
+.ending-overlay.visible {
+  display: block;
+}
+
+.ending-overlay.ending-infiniteLight {
+  color: #2a2438;
+  background: #ffffff;
+}
+
+.ending-overlay.ending-balance {
+  color: var(--accent-warm);
+}
