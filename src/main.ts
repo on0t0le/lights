@@ -1,6 +1,6 @@
 import './styles.css';
 import { createInitialState, type GameState, type ResourceId, type BuildingId } from './state';
-import { loadFromLocalStorage, saveToLocalStorage } from './game/save';
+import { loadFromLocalStorage, saveToLocalStorage, clearLocalStorage } from './game/save';
 import { tick, totalLightOutput } from './systems/automation';
 import { applyHappiness } from './systems/happiness';
 import { applyContrast } from './systems/contrast';
@@ -239,6 +239,14 @@ function rebuildEndingOverlay(ending: GameState['ending']): void {
   const message = document.createElement('p');
   message.textContent = ENDING_MESSAGES[ending];
   endingOverlay.appendChild(message);
+  const restartButton = document.createElement('button');
+  restartButton.className = 'restart-button';
+  restartButton.textContent = 'Restart';
+  restartButton.addEventListener('click', () => {
+    clearLocalStorage();
+    location.reload();
+  });
+  endingOverlay.appendChild(restartButton);
 }
 
 /** Cheap signature of everything that affects panel *structure* (not raw resource numbers, which flow every tick). */

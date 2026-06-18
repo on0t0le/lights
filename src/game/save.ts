@@ -88,3 +88,7 @@ export function loadFromLocalStorage(): GameState | null {
     return null;
   }
 }
+
+export function clearLocalStorage(): void {
+  localStorage.removeItem(SAVE_KEY);
+}

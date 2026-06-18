@@ -187,11 +187,23 @@ body {
   position: fixed;
   inset: 0;
   z-index: 50;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 1.5rem;
   text-align: center;
   padding: 1.5rem 2rem;
   background: rgba(10, 8, 20, 0.75);
+}
+
+.restart-button {
+  background: var(--panel-bg);
+  border: 1px solid var(--accent-warm);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 0.6rem 1.2rem;
+  font-size: 1rem;
+  cursor: pointer;
 }
 
 .ending-overlay p {
