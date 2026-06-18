@@ -243,8 +243,11 @@ function rebuildEndingOverlay(ending: GameState['ending']): void {
   restartButton.className = 'restart-button';
   restartButton.textContent = 'Restart';
   restartButton.addEventListener('click', () => {
+    // A reload would trigger the beforeunload autosave handler below, which
+    // would write the just-ended state straight back to localStorage before
+    // the page even unloads, undoing the clear. Reset in-memory instead.
     clearLocalStorage();
-    location.reload();
+    setState(createInitialState());
   });
   endingOverlay.appendChild(restartButton);
 }
