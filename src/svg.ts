@@ -25,6 +25,10 @@ export function circle(attrs: Record<string, string | number>): SVGCircleElement
   return svgEl('circle', attrs);
 }
 
+export function ellipse(attrs: Record<string, string | number>): SVGEllipseElement {
+  return svgEl('ellipse', attrs);
+}
+
 export function line(attrs: Record<string, string | number>): SVGLineElement {
   return svgEl('line', attrs);
 }

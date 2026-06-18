@@ -56,9 +56,9 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     lumenMultiplier: 1.5,
     unlocks: ['orbitalMirror'],
   },
-  // Phase 4 (Space): Dyson Swarm itself opens as soon as Phase 4 is reached
-  // (see systems/progression.ts), so this card's unlock targets the two
-  // buildings gated 'researchOnly' instead.
+  // Phase 4 (Space): all three Phase 4 buildings - including Dyson Swarm
+  // itself - stay locked until this card is bought, so the building (and
+  // its swarm-ring visual) can never appear before the research does.
   dysonSwarms: {
     id: 'dysonSwarms',
     name: 'Dyson Swarms',
@@ -66,7 +66,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     requires: ['orbitalMirrors'],
     phase: 4,
     lumenMultiplier: 1.4,
-    unlocks: ['whiteDwarfReactor', 'stellarMirror'],
+    unlocks: ['dysonSwarm', 'whiteDwarfReactor', 'stellarMirror'],
   },
   // Reduces the Phase 3 insomnia/sleep-disruption penalty (happiness.ts) -
   // foreshadows the spec's Ending 1 ("population enters permanent artificial sleep").

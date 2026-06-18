@@ -98,9 +98,11 @@ describe('isBuildingUnlocked for Phase 4', () => {
     expect(isBuildingUnlocked(state, 'stellarMirror')).toBe(false);
   });
 
-  test('Dyson Swarm unlocks immediately on entering Phase 4, no prerequisite count', () => {
+  test('Dyson Swarm stays locked in Phase 4 until Dyson Swarms research is purchased', () => {
     const state = { ...createInitialState(), phase: 4 as const };
-    expect(isBuildingUnlocked(state, 'dysonSwarm')).toBe(true);
+    expect(isBuildingUnlocked(state, 'dysonSwarm')).toBe(false);
+    const withResearch = { ...state, research: ['dysonSwarms' as const] };
+    expect(isBuildingUnlocked(withResearch, 'dysonSwarm')).toBe(true);
   });
 
   test('White Dwarf Reactor and Stellar Mirror stay locked in Phase 4 until Dyson Swarms research is purchased', () => {

@@ -2,7 +2,7 @@ import type { GameState } from '../state';
 import { totalLightOutput } from './automation';
 import { nightAmount } from './contrast';
 import { activeEventEffect } from '../game/events';
-import { wonderPriorityMultiplier } from './priorities';
+import { priorityMultiplier } from './priorities';
 
 /** Ambient sources scale to roughly the same "felt" magnitude as the event bonuses below. */
 const AMBIENT_WONDER_SCALE = 0.05;
@@ -50,7 +50,7 @@ function ambientWonder(state: GameState): number {
  */
 export function computeWonderYield(state: GameState): number {
   const raw = ambientWonder(state) + activeEventEffect(state).wonderBonus;
-  return raw * state.darkness * wonderPriorityMultiplier(state);
+  return raw * state.darkness * priorityMultiplier(state, 'wonder');
 }
 
 /**

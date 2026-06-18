@@ -2,7 +2,7 @@ import type { GameState } from '../state';
 import { totalLightOutput } from './automation';
 import { computeContrast, nightAmount } from './contrast';
 import { activeEventEffect } from '../game/events';
-import { happinessPriorityBonus } from './priorities';
+import { priorityMultiplier } from './priorities';
 
 /**
  * Caps how much sleep disruption can subtract from happiness. Only applies
@@ -80,10 +80,10 @@ export function computeHappiness(light: number): number {
 }
 
 export function applyHappiness(state: GameState): GameState {
-  const base = computeHappiness(totalLightOutput(state));
+  const base = computeHappiness(totalLightOutput(state)) * priorityMultiplier(state, 'happiness');
   const penalty =
     sleepDisruptionPenalty(state) + wildlifeDisruptionPenalty(state) + activeEventEffect(state).happinessPenalty;
-  const happiness = Math.min(1, Math.max(0, base - penalty + happinessPriorityBonus(state)));
+  const happiness = Math.min(1, Math.max(0, base - penalty));
   return {
     ...state,
     resources: {

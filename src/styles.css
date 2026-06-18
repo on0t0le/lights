@@ -179,24 +179,40 @@ body {
   --shadow-strength: 1;
 }
 
+/* A true overlay: covers the whole viewport, centered over the scene
+   (city/planet/universe), instead of an in-flow block stuck at the bottom
+   of the page. */
 .ending-overlay {
   display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  align-items: center;
+  justify-content: center;
   text-align: center;
-  padding: 1.5rem 1rem;
-  font-size: 1.1rem;
+  padding: 1.5rem 2rem;
+  background: rgba(10, 8, 20, 0.75);
+}
+
+.ending-overlay p {
+  font-size: 1.5rem;
   font-style: italic;
   color: var(--text-primary);
+  max-width: 40rem;
 }
 
 .ending-overlay.visible {
-  display: block;
+  display: flex;
+}
+
+.ending-overlay.ending-infiniteLight p {
+  color: #2a2438;
 }
 
 .ending-overlay.ending-infiniteLight {
-  color: #2a2438;
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.85);
 }
 
-.ending-overlay.ending-balance {
+.ending-overlay.ending-balance p {
   color: var(--accent-warm);
 }

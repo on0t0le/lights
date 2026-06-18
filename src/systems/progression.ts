@@ -26,9 +26,11 @@ const UNLOCK_REQUIREMENT: Record<
   solarFarm: null,
   fusionReactor: 'researchOnly',
   orbitalMirror: 'researchOnly',
-  // Phase 4 (Space): Dyson Swarm opens the phase the same way; White Dwarf
-  // Reactor and Stellar Mirror are gated by the Dyson Swarms research card.
-  dysonSwarm: null,
+  // Phase 4 (Space): the Dyson Swarm itself, plus White Dwarf Reactor and
+  // Stellar Mirror, are all gated by the Dyson Swarms research card - it
+  // would otherwise be possible to own (and see swarm rings for) a Dyson
+  // Swarm before ever researching it.
+  dysonSwarm: 'researchOnly',
   whiteDwarfReactor: 'researchOnly',
   stellarMirror: 'researchOnly',
 };

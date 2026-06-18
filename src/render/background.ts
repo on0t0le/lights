@@ -1,11 +1,9 @@
-import { rect, linearGradient, radialGradient, circle, path, svgEl, clear } from '../svg';
+import { rect, linearGradient, radialGradient, circle, path, svgEl } from '../svg';
 import { mix } from './color';
 import type { GameState } from '../state';
+import { WIDTH, HEIGHT, HORIZON_Y } from './geometry';
 
-const WIDTH = 800;
-const HEIGHT = 300;
 const STAR_COUNT = 40;
-const HORIZON_Y = 260;
 
 // Deterministic pseudo-random star positions so the sky doesn't reshuffle every render.
 const STAR_SEEDS = Array.from({ length: STAR_COUNT }, (_, i) => {
@@ -59,118 +57,187 @@ function cloudPath(cx: number, cy: number, scale: number): string {
   );
 }
 
-export function renderBackground(
-  svg: SVGSVGElement,
-  state: GameState,
-  totalLight: number
-): void {
-  clear(svg);
+export interface BackgroundHandle {
+  skyTopStop: SVGStopElement;
+  skyBottomStop: SVGStopElement;
+  sunGlowStop: SVGRadialGradientElement;
+  sunGroup: SVGGElement;
+  sunGlow: SVGCircleElement;
+  sunCore: SVGCircleElement;
+  starGroup: SVGGElement;
+  starCircles: SVGCircleElement[];
+  moonGroup: SVGGElement;
+  moonMaskInner: SVGCircleElement;
+  moonDisc: SVGCircleElement;
+  cloudGroup: SVGGElement;
+  cloudPaths: SVGPathElement[];
+}
+
+/** Builds the entire background scene once. Only attributes are patched after this (see updateBackground). */
+export function mountBackground(svg: SVGSVGElement): BackgroundHandle {
   svg.setAttribute('viewBox', `0 0 ${WIDTH} ${HEIGHT}`);
+  // Default preserveAspectRatio ("xMidYMid meet") letterboxes when the
+  // element's aspect ratio doesn't match the 800x300 viewBox; "slice" fills
+  // the element instead, so the sky always covers the full width.
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+
+  const defs = svgEl('defs', {});
+  const skyGradient = linearGradient(
+    'sky-gradient',
+    [
+      { offset: '0%', color: '#1a1330' },
+      { offset: '100%', color: '#2d1f4a' },
+    ],
+    { x1: '0', y1: '0', x2: '0', y2: '1' }
+  );
+  const [skyTopStop, skyBottomStop] = skyGradient.children as unknown as [SVGStopElement, SVGStopElement];
+  defs.appendChild(skyGradient);
+
+  const sunGlowStop = radialGradient('sun-glow', [
+    { offset: '0%', color: '#fff8d8', opacity: 1 },
+    { offset: '40%', color: '#ffe9a0', opacity: 0.8 },
+    { offset: '100%', color: '#ffe9a0', opacity: 0 },
+  ]);
+  defs.appendChild(sunGlowStop);
+
+  const moonMaskInner = circle({ cx: 0, cy: 0, r: 0, fill: 'black' });
+  const mask = svgEl('mask', { id: 'moon-mask' });
+  mask.appendChild(circle({ cx: 0, cy: 0, r: 16, fill: 'white', class: 'moon-mask-outer' }));
+  mask.appendChild(moonMaskInner);
+  defs.appendChild(mask);
+
+  svg.appendChild(defs);
+  svg.appendChild(rect({ x: 0, y: 0, width: WIDTH, height: HEIGHT, fill: 'url(#sky-gradient)' }));
+
+  const starGroup = svgEl('g', { class: 'stars' });
+  const starCircles = STAR_SEEDS.map((star) => {
+    const el = circle({ cx: star.x, cy: star.y, r: star.r, fill: 'white', opacity: 0 });
+    starGroup.appendChild(el);
+    return el;
+  });
+  svg.appendChild(starGroup);
+
+  const sunGroup = svgEl('g', { class: 'sun-group' });
+  const sunGlow = circle({ class: 'sun', cx: 0, cy: 0, r: 18, fill: 'url(#sun-glow)' });
+  const sunCore = circle({ cx: 0, cy: 0, r: 10, fill: '#fff8d8' });
+  sunGroup.append(sunGlow, sunCore);
+  svg.appendChild(sunGroup);
+
+  const moonGroup = svgEl('g', { class: 'moon-group' });
+  const moonDisc = circle({ class: 'moon', cx: 0, cy: 0, r: 16, fill: '#e8e6f0', mask: 'url(#moon-mask)' });
+  moonGroup.appendChild(moonDisc);
+  svg.appendChild(moonGroup);
+
+  const cloudGroup = svgEl('g', { class: 'clouds' });
+  const cloudPaths = CLOUD_SEEDS.map((seed) => {
+    const el = path({ class: 'cloud', d: cloudPath(0, seed.baseY, seed.scale), fill: '#ffffff', opacity: 0 });
+    cloudGroup.appendChild(el);
+    return el;
+  });
+  svg.appendChild(cloudGroup);
+
+  return {
+    skyTopStop,
+    skyBottomStop,
+    sunGlowStop,
+    sunGroup,
+    sunGlow,
+    sunCore,
+    starGroup,
+    starCircles,
+    moonGroup,
+    moonMaskInner,
+    moonDisc,
+    cloudGroup,
+    cloudPaths,
+  };
+}
+
+/**
+ * Patches the already-mounted background for this tick. Nothing is created
+ * or destroyed here - that's the whole point (see main.ts's render loop).
+ */
+export function updateBackground(handle: BackgroundHandle, state: GameState, totalLight: number): void {
+  // Phases 3+ (Planet, Space, Remove Darkness): we're off the ground, so a
+  // terrestrial day/night sky with a sun and moon crossing it makes no
+  // sense - they used to render *underneath* the opaque planet/universe
+  // scene anyway, never actually visible while still animating every tick.
+  // Space gets a fixed dark sky plus the same star field, nothing else.
+  if (state.phase >= 3) {
+    handle.skyTopStop.setAttribute('stop-color', '#05030d');
+    handle.skyBottomStop.setAttribute('stop-color', '#0c0a1a');
+    handle.sunGroup.style.display = 'none';
+    handle.moonGroup.style.display = 'none';
+    handle.cloudGroup.style.display = 'none';
+    handle.starGroup.style.display = '';
+    const visibility = Math.min(1, Math.max(0, 1 - totalLight / 2000) * state.darkness + 0.15);
+    for (const star of handle.starCircles) {
+      star.setAttribute('opacity', visibility.toFixed(2));
+    }
+    return;
+  }
 
   const height = sunHeight(state.dayNightClock); // -1 (midnight) .. 1 (noon)
   // Continuous interpolation (not a hard day/night flip) so dawn and dusk
   // read as smooth gradients rather than snapping instantly.
   const dayness = Math.min(1, Math.max(0, (height + 1) / 2));
-  const top = mix('#1a1330', '#6fa8dc', dayness);
-  const bottom = mix('#2d1f4a', '#fce8b2', dayness);
-
-  const defs = svgEl('defs', {});
-  defs.appendChild(
-    linearGradient('sky-gradient', [
-      { offset: '0%', color: top },
-      { offset: '100%', color: bottom },
-    ], { x1: '0', y1: '0', x2: '0', y2: '1' })
-  );
+  handle.skyTopStop.setAttribute('stop-color', mix('#1a1330', '#6fa8dc', dayness));
+  handle.skyBottomStop.setAttribute('stop-color', mix('#2d1f4a', '#fce8b2', dayness));
 
   // Sun: "circle with glow" (spec). Its glow blooms with totalLight, tying
   // the overexposure beat to the same brightness that washes out the stars.
   const isDay = height > 0;
+  handle.sunGroup.style.display = isDay ? '' : 'none';
   if (isDay) {
     const bloom = Math.min(1, totalLight / 5000);
     const glowRadius = 18 + bloom * 30;
-    defs.appendChild(
-      radialGradient('sun-glow', [
-        { offset: '0%', color: '#fff8d8', opacity: 1 },
-        { offset: '40%', color: '#ffe9a0', opacity: 0.8 },
-        { offset: '100%', color: '#ffe9a0', opacity: 0 },
-      ])
-    );
-    svg.appendChild(defs);
-    svg.appendChild(rect({ x: 0, y: 0, width: WIDTH, height: HEIGHT, fill: 'url(#sky-gradient)' }));
-
     const sunX = state.dayNightClock * WIDTH;
     const sunY = HORIZON_Y - height * 180;
-    svg.appendChild(
-      circle({
-        class: 'sun',
-        cx: sunX,
-        cy: sunY,
-        r: glowRadius,
-        fill: 'url(#sun-glow)',
-      })
-    );
-    svg.appendChild(circle({ cx: sunX, cy: sunY, r: 10 + bloom * 4, fill: '#fff8d8' }));
-  } else {
-    svg.appendChild(defs);
-    svg.appendChild(rect({ x: 0, y: 0, width: WIDTH, height: HEIGHT, fill: 'url(#sky-gradient)' }));
+    handle.sunGlow.setAttribute('cx', String(sunX));
+    handle.sunGlow.setAttribute('cy', String(sunY));
+    handle.sunGlow.setAttribute('r', String(glowRadius));
+    handle.sunCore.setAttribute('cx', String(sunX));
+    handle.sunCore.setAttribute('cy', String(sunY));
+    handle.sunCore.setAttribute('r', String(10 + bloom * 4));
   }
 
   const visibility = starVisibility(state.dayNightClock, totalLight, state.phase);
-  if (visibility > 0.01) {
-    for (const star of STAR_SEEDS) {
-      svg.appendChild(
-        circle({
-          cx: star.x,
-          cy: star.y,
-          r: star.r,
-          fill: 'white',
-          opacity: visibility.toFixed(2),
-        })
-      );
-    }
+  handle.starGroup.style.display = visibility > 0.01 ? '' : 'none';
+  for (const star of handle.starCircles) {
+    star.setAttribute('opacity', visibility.toFixed(2));
   }
 
   // Moon: "circle with masks" (spec) - a white disc minus an offset dark
   // disc renders as a crescent. Arcs opposite the sun across the night sky.
-  if (!isDay) {
+  // Stays visible through a Lunar Eclipse even if the night-only gate would
+  // otherwise have hidden it, so the eclipse is reliably shown when active.
+  const eclipsed = state.activeEvent?.id === 'lunarEclipse';
+  const showMoon = !isDay || eclipsed;
+  handle.moonGroup.style.display = showMoon ? '' : 'none';
+  if (showMoon) {
     const moonClock = (state.dayNightClock + 0.5) % 1;
     const moonX = moonClock * WIDTH;
     const moonY = HORIZON_Y - sunHeight(moonClock) * 180;
     const moonRadius = 16;
-    const maskId = 'moon-mask';
-    const mask = svgEl('mask', { id: maskId });
-    mask.appendChild(circle({ cx: moonX, cy: moonY, r: moonRadius, fill: 'white' }));
+    handle.moonDisc.setAttribute('cx', String(moonX));
+    handle.moonDisc.setAttribute('cy', String(moonY));
     // Offset just enough to carve a clearly readable crescent, not a sliver.
-    mask.appendChild(circle({ cx: moonX + moonRadius * 0.7, cy: moonY, r: moonRadius * 0.92, fill: 'black' }));
-    defs.appendChild(mask);
-
-    const eclipsed = state.activeEvent?.id === 'lunarEclipse';
-    svg.appendChild(
-      circle({
-        class: 'moon',
-        cx: moonX,
-        cy: moonY,
-        r: moonRadius,
-        fill: eclipsed ? '#7a2030' : '#e8e6f0',
-        mask: `url(#${maskId})`,
-      })
-    );
+    handle.moonMaskInner.setAttribute('cx', String(moonX + moonRadius * 0.7));
+    handle.moonMaskInner.setAttribute('cy', String(moonY));
+    handle.moonMaskInner.setAttribute('r', String(moonRadius * 0.92));
+    handle.moonDisc.setAttribute('fill', eclipsed ? '#7a2030' : '#e8e6f0');
   }
 
   // Clouds: "Bezier curves" (spec). Drift with tick, thicken during the
   // Cloudy Season event, and fade as the late-game wash washes out contrast.
   const cloudySeason = state.activeEvent?.id === 'cloudySeason';
   const baseOpacity = cloudySeason ? 0.75 : 0.3;
-  for (const seed of CLOUD_SEEDS) {
+  handle.cloudGroup.style.display = '';
+  CLOUD_SEEDS.forEach((seed, i) => {
     const driftX = (seed.phase + state.tick * seed.speed) % (WIDTH + 140);
     const cx = driftX - 70;
-    svg.appendChild(
-      path({
-        class: 'cloud',
-        d: cloudPath(cx, seed.baseY, seed.scale),
-        fill: '#ffffff',
-        opacity: baseOpacity.toFixed(2),
-      })
-    );
-  }
+    const el = handle.cloudPaths[i]!;
+    el.setAttribute('d', cloudPath(cx, seed.baseY, seed.scale));
+    el.setAttribute('opacity', baseOpacity.toFixed(2));
+  });
 }

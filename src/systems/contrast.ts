@@ -1,7 +1,7 @@
 import type { GameState } from '../state';
 import { totalLightOutput } from './automation';
 import { activeEventEffect } from '../game/events';
-import { contrastPriorityBonus } from './priorities';
+import { priorityMultiplier } from './priorities';
 
 /**
  * Higher means brightness eats into contrast faster; chosen so Phase 1
@@ -36,8 +36,8 @@ export function computeContrast(state: GameState): number {
     return 0;
   }
   const totalLight = totalLightOutput(state);
-  const base = night / (1 + totalLight / BRIGHTNESS_SCALE);
-  const withBonuses = base + activeEventEffect(state).contrastBonus + contrastPriorityBonus(state);
+  const base = (night / (1 + totalLight / BRIGHTNESS_SCALE)) * priorityMultiplier(state, 'contrast');
+  const withBonuses = base + activeEventEffect(state).contrastBonus;
   return Math.min(1, withBonuses * state.darkness);
 }
 

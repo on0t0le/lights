@@ -1,74 +1,56 @@
 import { describe, expect, test } from 'vitest';
 import { createInitialState } from '../state';
-import {
-  lumenPriorityMultiplier,
-  happinessPriorityBonus,
-  energyPriorityMultiplier,
-  contrastPriorityBonus,
-  wonderPriorityMultiplier,
-} from './priorities';
+import { priorityMultiplier, priorityShare } from './priorities';
 
-describe('lumenPriorityMultiplier', () => {
-  test('is exactly 1 at the neutral default (0.5)', () => {
-    expect(lumenPriorityMultiplier(createInitialState())).toBe(1);
+describe('priorityMultiplier', () => {
+  test('is exactly 1 for every resource at the neutral default (all sliders equal)', () => {
+    const state = createInitialState();
+    expect(priorityMultiplier(state, 'lumens')).toBe(1);
+    expect(priorityMultiplier(state, 'energy')).toBe(1);
+    expect(priorityMultiplier(state, 'happiness')).toBe(1);
   });
 
-  test('rises above 1 as the lumens slider increases', () => {
-    const state = { ...createInitialState(), priorities: { ...createInitialState().priorities, lumens: 1 } };
-    expect(lumenPriorityMultiplier(state)).toBeGreaterThan(1);
+  test('favoring one resource raises its multiplier above 1', () => {
+    const base = createInitialState();
+    const state = { ...base, priorities: { ...base.priorities, lumens: 1 } };
+    expect(priorityMultiplier(state, 'lumens')).toBeGreaterThan(1);
   });
 
-  test('drops below 1 as the lumens slider decreases', () => {
-    const state = { ...createInitialState(), priorities: { ...createInitialState().priorities, lumens: 0 } };
-    expect(lumenPriorityMultiplier(state)).toBeLessThan(1);
-  });
-});
-
-describe('happinessPriorityBonus', () => {
-  test('is exactly 0 at the neutral default (0.5)', () => {
-    expect(happinessPriorityBonus(createInitialState())).toBe(0);
+  test('favoring one resource is a real tradeoff: it lowers another visible resource\'s multiplier', () => {
+    const base = createInitialState();
+    const state = { ...base, priorities: { ...base.priorities, lumens: 1 } };
+    expect(priorityMultiplier(state, 'energy')).toBeLessThan(1);
   });
 
-  test('rises above 0 as the happiness slider increases', () => {
-    const state = { ...createInitialState(), priorities: { ...createInitialState().priorities, happiness: 1 } };
-    expect(happinessPriorityBonus(state)).toBeGreaterThan(0);
+  test('lowering one resource is the mirror tradeoff: it raises the others', () => {
+    const base = createInitialState();
+    const state = { ...base, priorities: { ...base.priorities, lumens: 0 } };
+    expect(priorityMultiplier(state, 'lumens')).toBeLessThan(1);
+    expect(priorityMultiplier(state, 'energy')).toBeGreaterThan(1);
   });
 
-  test('stays capped (never sends happiness above a small bonus)', () => {
-    const state = { ...createInitialState(), priorities: { ...createInitialState().priorities, happiness: 1 } };
-    expect(happinessPriorityBonus(state)).toBeLessThanOrEqual(0.2);
-  });
-});
-
-describe('energyPriorityMultiplier', () => {
-  test('is exactly 1 at the neutral default (0.5)', () => {
-    expect(energyPriorityMultiplier(createInitialState())).toBe(1);
+  test('hidden resources (not yet shown to the player) keep a neutral multiplier by default', () => {
+    const state = createInitialState();
+    expect(state.hiddenResources).toContain('wonder');
+    expect(priorityMultiplier(state, 'wonder')).toBe(1);
   });
 
-  test('rises above 1 as the energy slider increases', () => {
-    const state = { ...createInitialState(), priorities: { ...createInitialState().priorities, energy: 1 } };
-    expect(energyPriorityMultiplier(state)).toBeGreaterThan(1);
+  test('allocating among only the resources currently visible, ignoring hidden ones', () => {
+    // Phase 1: contrast/wonder are hidden, so only lumens/energy/happiness share the pool.
+    const base = createInitialState();
+    const allUp = { ...base, priorities: { ...base.priorities, lumens: 1, energy: 1 } };
+    // lumens and energy both favored equally -> still tied with each other, both above happiness.
+    expect(priorityMultiplier(allUp, 'lumens')).toBeCloseTo(priorityMultiplier(allUp, 'energy'), 5);
+    expect(priorityMultiplier(allUp, 'lumens')).toBeGreaterThan(priorityMultiplier(allUp, 'happiness'));
   });
 });
 
-describe('contrastPriorityBonus', () => {
-  test('is exactly 0 at the neutral default (0.5)', () => {
-    expect(contrastPriorityBonus(createInitialState())).toBe(0);
-  });
-
-  test('rises above 0 as the contrast slider increases', () => {
-    const state = { ...createInitialState(), priorities: { ...createInitialState().priorities, contrast: 1 } };
-    expect(contrastPriorityBonus(state)).toBeGreaterThan(0);
-  });
-});
-
-describe('wonderPriorityMultiplier', () => {
-  test('is exactly 1 at the neutral default (0.5)', () => {
-    expect(wonderPriorityMultiplier(createInitialState())).toBe(1);
-  });
-
-  test('rises above 1 as the wonder slider increases', () => {
-    const state = { ...createInitialState(), priorities: { ...createInitialState().priorities, wonder: 1 } };
-    expect(wonderPriorityMultiplier(state)).toBeGreaterThan(1);
+describe('priorityShare', () => {
+  test('shares among visible resources sum to 1', () => {
+    const base = createInitialState();
+    const state = { ...base, priorities: { ...base.priorities, lumens: 0.8, energy: 0.3 } };
+    const total =
+      priorityShare(state, 'lumens') + priorityShare(state, 'energy') + priorityShare(state, 'happiness');
+    expect(total).toBeCloseTo(1, 5);
   });
 });

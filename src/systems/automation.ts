@@ -3,7 +3,7 @@ import { BUILDINGS, energyProduction, energyUpkeep, lumenOutput } from '../game/
 import { addResource } from '../game/resources';
 import { researchLumenMultiplier } from '../game/research';
 import { activeEventEffect } from '../game/events';
-import { lumenPriorityMultiplier, energyPriorityMultiplier } from './priorities';
+import { priorityMultiplier } from './priorities';
 import { advancePhase } from './progression';
 
 const DEFAULT_DAY_LENGTH = 1 / 120; // one full day/night cycle per 120 ticks
@@ -31,7 +31,7 @@ export function resolveEnergy(state: GameState): EnergyResolution {
     energyProduced += energyProduction(id, owned);
     energyConsumed += energyUpkeep(id, owned);
   }
-  energyProduced *= energyPriorityMultiplier(state);
+  energyProduced *= priorityMultiplier(state, 'energy');
 
   const consumersActive = energyConsumed <= energyProduced;
   const energySurplus = consumersActive ? energyProduced - energyConsumed : energyProduced;
@@ -62,7 +62,9 @@ export function tick(state: GameState, dayStep: number = DEFAULT_DAY_LENGTH): Ga
   let next = state;
 
   const lumenMultiplier =
-    researchLumenMultiplier(state) * lumenPriorityMultiplier(state) * activeEventEffect(state).lumenProductivityMult;
+    researchLumenMultiplier(state) *
+    priorityMultiplier(state, 'lumens') *
+    activeEventEffect(state).lumenProductivityMult;
   const lumens = totalLightOutput(state) * lumenMultiplier;
   if (lumens !== 0) {
     next = addResource(next, 'lumens', lumens);

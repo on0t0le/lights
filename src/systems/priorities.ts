@@ -1,38 +1,43 @@
-import type { GameState } from '../state';
+import type { GameState, ResourceId } from '../state';
 
 /**
- * All five automation priority sliders (spec: "Automation" - "Allow
- * priority sliders: Lumens, Energy, Happiness, Contrast, Wonder.
- * Optimization becomes the main gameplay."). Each is read by the system
- * that owns the resource it biases: automation.ts (lumens, energy),
- * happiness.ts (happiness), contrast.ts (contrast), wonder.ts (wonder).
+ * Allocation model for the five priority sliders (spec: "Automation" -
+ * "Allow priority sliders: Lumens, Energy, Happiness, Contrast, Wonder.
+ * Optimization becomes the main gameplay."). Sliders hold *relative*
+ * weights, not independent 0..1 knobs: the value of each slider only
+ * matters compared to the others, like budget shares. Each system that
+ * owns a resource (automation.ts, happiness.ts, contrast.ts, wonder.ts)
+ * multiplies its output by `priorityMultiplier`, so favoring one resource
+ * necessarily comes at the expense of the rest - the actual tradeoff the
+ * spec calls for, instead of five independent dials that didn't interact.
  */
 
-/** Range 0.5 (slider=0) to 1.5 (slider=1); neutral default (0.5) is exactly 1. */
-export function lumenPriorityMultiplier(state: GameState): number {
-  return 0.5 + state.priorities.lumens;
+/** The priority resources currently shown to the player (a resource hidden from the UI keeps its default weight). */
+function visiblePriorityIds(state: GameState): ResourceId[] {
+  return (Object.keys(state.priorities) as ResourceId[]).filter((id) => !state.hiddenResources.includes(id));
 }
 
-/** Range 0.5 (slider=0) to 1.5 (slider=1); neutral default (0.5) is exactly 1. */
-export function energyPriorityMultiplier(state: GameState): number {
-  return 0.5 + state.priorities.energy;
+/** `resource`'s share of the pool, 0..1, among the currently visible priority resources. Neutral (all equal) is `1 / visibleCount`. */
+export function priorityShare(state: GameState, resource: ResourceId): number {
+  const visible = visiblePriorityIds(state);
+  const sum = visible.reduce((total, id) => total + state.priorities[id], 0);
+  if (sum <= 0) {
+    return visible.length > 0 ? 1 / visible.length : 0;
+  }
+  return state.priorities[resource] / sum;
 }
 
-/** Small capped bonus, scaling 0 (slider=0) to 0.2 (slider=1); neutral default (0.5) is exactly 0. */
-const HAPPINESS_BONUS_SCALE = 0.4;
-
-export function happinessPriorityBonus(state: GameState): number {
-  return Math.max(0, (state.priorities.happiness - 0.5) * HAPPINESS_BONUS_SCALE);
-}
-
-/** Small capped bonus, scaling 0 (slider=0) to 0.2 (slider=1); neutral default (0.5) is exactly 0. */
-const CONTRAST_BONUS_SCALE = 0.4;
-
-export function contrastPriorityBonus(state: GameState): number {
-  return Math.max(0, (state.priorities.contrast - 0.5) * CONTRAST_BONUS_SCALE);
-}
-
-/** Range 0.5 (slider=0) to 1.5 (slider=1); neutral default (0.5) is exactly 1. */
-export function wonderPriorityMultiplier(state: GameState): number {
-  return 0.5 + state.priorities.wonder;
+/**
+ * Multiplier applied to `resource`'s production: `priorityShare * visibleCount`.
+ * Neutral (every visible slider equal) is exactly 1, same as before sliders
+ * existed. Favor one resource and its multiplier rises above 1 while every
+ * other visible resource's multiplier drops below 1 - they're drawn from
+ * the same pool.
+ */
+export function priorityMultiplier(state: GameState, resource: ResourceId): number {
+  const visibleCount = visiblePriorityIds(state).length;
+  if (visibleCount === 0) {
+    return 1;
+  }
+  return priorityShare(state, resource) * visibleCount;
 }

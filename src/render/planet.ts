@@ -3,9 +3,8 @@
 // represented by circles and glowing regions. Dark areas become smaller."
 import { rect, circle, svgEl } from '../svg';
 import type { GameState } from '../state';
+import { WIDTH, HEIGHT } from './geometry';
 
-const WIDTH = 800;
-const HEIGHT = 300;
 const CENTER_X = WIDTH / 2;
 const CENTER_Y = HEIGHT / 2;
 const RADIUS = 110;
@@ -30,49 +29,58 @@ function litFraction(totalLight: number): number {
   return Math.min(1, totalLight / FULL_LIGHT_SCALE);
 }
 
-export function renderPlanet(svg: SVGSVGElement, _state: GameState, totalLight: number): void {
-  const group = svgEl('g', { class: 'planet' });
-  const lit = litFraction(totalLight);
+export interface PlanetHandle {
+  root: SVGGElement;
+  litOverlay: SVGRectElement;
+  regions: { el: SVGCircleElement; x: number }[];
+}
+
+export function mountPlanet(svg: SVGSVGElement): PlanetHandle {
+  const root = svgEl('g', { class: 'planet' });
 
   const clipId = 'planet-clip';
   const defs = svgEl('defs', {});
   const clipPath = svgEl('clipPath', { id: clipId });
   clipPath.appendChild(circle({ cx: CENTER_X, cy: CENTER_Y, r: RADIUS }));
   defs.appendChild(clipPath);
-  group.appendChild(defs);
+  root.appendChild(defs);
 
   // Base globe: dark ocean/landmass, slowly replaced by the lit overlay below.
-  group.appendChild(
-    circle({ cx: CENTER_X, cy: CENTER_Y, r: RADIUS, fill: '#1c2a3a', stroke: '#34506b' })
-  );
+  root.appendChild(circle({ cx: CENTER_X, cy: CENTER_Y, r: RADIUS, fill: '#1c2a3a', stroke: '#34506b' }));
 
   // Lit overlay grows from one edge across the disc as totalLight rises -
   // the dark portion still showing through the clip is "the dark area"
   // shrinking (spec).
-  group.appendChild(
-    rect({
-      x: CENTER_X - RADIUS,
-      y: CENTER_Y - RADIUS,
-      width: lit * RADIUS * 2,
-      height: RADIUS * 2,
-      fill: '#3a5f3f',
-      opacity: '0.9',
-      'clip-path': `url(#${clipId})`,
-    })
-  );
+  const litOverlay = rect({
+    x: CENTER_X - RADIUS,
+    y: CENTER_Y - RADIUS,
+    width: 0,
+    height: RADIUS * 2,
+    fill: '#3a5f3f',
+    opacity: '0.9',
+    'clip-path': `url(#${clipId})`,
+  });
+  root.appendChild(litOverlay);
 
   // Glowing regions (city lights): only the ones inside the currently-lit
   // band are visible, and they brighten further as totalLight climbs.
+  const regions = REGIONS.map((region) => {
+    const el = circle({ cx: region.x, cy: region.y, r: region.r, fill: '#ffe9a8', opacity: 0 });
+    root.appendChild(el);
+    return { el, x: region.x };
+  });
+
+  svg.appendChild(root);
+  return { root, litOverlay, regions };
+}
+
+export function updatePlanet(handle: PlanetHandle, _state: GameState, totalLight: number): void {
+  const lit = litFraction(totalLight);
+  handle.litOverlay.setAttribute('width', String(lit * RADIUS * 2));
+
   const glowOpacity = Math.min(1, 0.3 + totalLight / FULL_LIGHT_SCALE);
   const litEdgeX = CENTER_X - RADIUS + lit * RADIUS * 2;
-  for (const region of REGIONS) {
-    if (region.x > litEdgeX) {
-      continue;
-    }
-    group.appendChild(
-      circle({ cx: region.x, cy: region.y, r: region.r, fill: '#ffe9a8', opacity: glowOpacity.toFixed(2) })
-    );
+  for (const region of handle.regions) {
+    region.el.setAttribute('opacity', region.x <= litEdgeX ? glowOpacity.toFixed(2) : '0');
   }
-
-  svg.appendChild(group);
 }
