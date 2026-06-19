@@ -11,9 +11,14 @@ const WINDOW_COLS = 3;
 // Deterministic per-tower height so the skyline doesn't reshuffle every render.
 const TOWER_HEIGHTS = Array.from({ length: TOWER_COUNT }, (_, i) => 70 + ((i * 53) % 110));
 
-/** Window glow opacity scales with total light - the City runs far brighter than the Village. */
+/**
+ * Window glow opacity scales with total light - the City bucket spans Gas
+ * Age through Cold Fusion Age (eras 3-9), a far wider range than the old
+ * 4-phase City alone, so the falloff distance is tuned to that era's
+ * mid-to-late totals rather than its earliest one.
+ */
 function glowOpacity(totalLight: number): number {
-  return Math.min(1, 0.1 + totalLight / 500);
+  return Math.min(1, 0.1 + totalLight / 200_000);
 }
 
 export interface CityHandle {

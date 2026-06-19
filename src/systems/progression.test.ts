@@ -1,210 +1,203 @@
 import { describe, expect, test } from 'vitest';
 import { isBuildingUnlocked, currentPhase, advancePhase } from './progression';
-import { createInitialState } from '../state';
+import { createInitialState, type ResourceId } from '../state';
 
 describe('isBuildingUnlocked', () => {
-  test('candle is unlocked from the start', () => {
-    expect(isBuildingUnlocked(createInitialState(), 'candle')).toBe(true);
+  test('a light source is buyable as soon as its era is reached, no research needed', () => {
+    expect(isBuildingUnlocked(createInitialState(), 'campfire')).toBe(true);
   });
 
-  test('lantern is locked until enough candles are owned', () => {
-    const state = createInitialState();
-    expect(isBuildingUnlocked(state, 'lantern')).toBe(false);
-    const withCandles = { ...state, buildings: { ...state.buildings, candle: 3 } };
-    expect(isBuildingUnlocked(withCandles, 'lantern')).toBe(true);
+  test('a secondary building stays locked without its era research card', () => {
+    expect(isBuildingUnlocked(createInitialState(), 'torch')).toBe(false);
   });
 
-  test('streetlamp is locked until enough lanterns are owned', () => {
-    const state = createInitialState();
-    expect(isBuildingUnlocked(state, 'streetlamp')).toBe(false);
-    const withLanterns = { ...state, buildings: { ...state.buildings, lantern: 3 } };
-    expect(isBuildingUnlocked(withLanterns, 'streetlamp')).toBe(true);
+  test('a secondary building unlocks once its era research card is bought', () => {
+    const state = { ...createInitialState(), research: ['fireMaking' as const] };
+    expect(isBuildingUnlocked(state, 'torch')).toBe(true);
   });
 
-  test('lighthouse is locked until enough streetlamps are owned', () => {
-    const state = createInitialState();
-    expect(isBuildingUnlocked(state, 'lighthouse')).toBe(false);
-    const withStreetlamps = { ...state, buildings: { ...state.buildings, streetlamp: 3 } };
-    expect(isBuildingUnlocked(withStreetlamps, 'lighthouse')).toBe(true);
+  test('every building stays locked before its era is reached, even with later research', () => {
+    const state = { ...createInitialState(), phase: 1, research: ['fireMaking' as const, 'oilExtraction' as const] };
+    expect(isBuildingUnlocked(state, 'oilLamp')).toBe(false); // requires era 2
   });
 
-  test('Phase 2 buildings are locked while still in Phase 1, regardless of building counts', () => {
-    const state = { ...createInitialState(), buildings: { ...createInitialState().buildings, lighthouse: 99 } };
-    expect(isBuildingUnlocked(state, 'powerPlant')).toBe(false);
-    expect(isBuildingUnlocked(state, 'neonSign')).toBe(false);
-    expect(isBuildingUnlocked(state, 'stadiumLights')).toBe(false);
+  // Issue #8: the Orbital Mirror's leave-the-ground gate is tied to how lit
+  // the planet's night sky reads (automation.ts's planetLitFraction, a log
+  // ramp off totalLightOutput), not a bare arbitrary lumen number - it reads
+  // as a civilization milestone rather than an arbitrary threshold.
+  test('Orbital Mirror requires Orbital Construction research AND a fully-lit civilization', () => {
+    const dimState = {
+      ...createInitialState(),
+      phase: 10,
+      research: ['orbitalConstruction' as const],
+    };
+    expect(isBuildingUnlocked(dimState, 'orbitalMirror')).toBe(false); // research alone isn't enough
+
+    const litState = {
+      ...dimState,
+      buildings: { ...dimState.buildings, torch: 700_000_000_000_000 }, // well past the lit threshold
+    };
+    expect(isBuildingUnlocked(litState, 'orbitalMirror')).toBe(true);
   });
 
-  test('Power Plant unlocks immediately on entering Phase 2, no prerequisite count', () => {
-    const state = { ...createInitialState(), phase: 2 };
-    expect(isBuildingUnlocked(state, 'powerPlant')).toBe(true);
-  });
-
-  test('Neon Sign is locked in Phase 2 until enough Power Plants are owned', () => {
-    const state = { ...createInitialState(), phase: 2 };
-    expect(isBuildingUnlocked(state, 'neonSign')).toBe(false);
-    const withPlants = { ...state, buildings: { ...state.buildings, powerPlant: 3 } };
-    expect(isBuildingUnlocked(withPlants, 'neonSign')).toBe(true);
-  });
-
-  test('Stadium Lights is locked in Phase 2 until enough Neon Signs are owned', () => {
-    const state = { ...createInitialState(), phase: 2 };
-    expect(isBuildingUnlocked(state, 'stadiumLights')).toBe(false);
-    const withSigns = { ...state, buildings: { ...state.buildings, neonSign: 3 } };
-    expect(isBuildingUnlocked(withSigns, 'stadiumLights')).toBe(true);
-  });
-});
-
-describe('isBuildingUnlocked with research', () => {
-  test('Streetlamp unlocks via Street Electricity research even without enough lanterns', () => {
-    const state = { ...createInitialState(), research: ['streetElectricity' as const] };
-    expect(isBuildingUnlocked(state, 'streetlamp')).toBe(true);
-  });
-});
-
-describe('isBuildingUnlocked for Phase 3', () => {
-  test('Phase 3 buildings are locked while still in Phase 2', () => {
-    const state = { ...createInitialState(), phase: 2 as const };
-    expect(isBuildingUnlocked(state, 'solarFarm')).toBe(false);
-    expect(isBuildingUnlocked(state, 'fusionReactor')).toBe(false);
+  test('a fully-lit civilization without the research still leaves Orbital Mirror locked', () => {
+    const state = {
+      ...createInitialState(),
+      phase: 10,
+      buildings: { ...createInitialState().buildings, torch: 700_000_000_000_000 },
+    };
     expect(isBuildingUnlocked(state, 'orbitalMirror')).toBe(false);
   });
 
-  test('Solar Farm unlocks immediately on entering Phase 3, no prerequisite count', () => {
-    const state = { ...createInitialState(), phase: 3 as const };
-    expect(isBuildingUnlocked(state, 'solarFarm')).toBe(true);
-  });
-
-  test('Fusion Reactor stays locked in Phase 3 until Fusion Power research is purchased', () => {
-    const state = { ...createInitialState(), phase: 3 as const };
-    expect(isBuildingUnlocked(state, 'fusionReactor')).toBe(false);
-    const withResearch = { ...state, research: ['fusionPower' as const] };
-    expect(isBuildingUnlocked(withResearch, 'fusionReactor')).toBe(true);
-  });
-
-  test('Orbital Mirror stays locked in Phase 3 until Orbital Mirrors research is purchased', () => {
-    const state = { ...createInitialState(), phase: 3 as const };
-    expect(isBuildingUnlocked(state, 'orbitalMirror')).toBe(false);
-    const withResearch = { ...state, research: ['orbitalMirrors' as const] };
-    expect(isBuildingUnlocked(withResearch, 'orbitalMirror')).toBe(true);
-  });
-});
-
-describe('isBuildingUnlocked for Phase 4', () => {
-  test('Phase 4 buildings are locked while still in Phase 3', () => {
-    const state = { ...createInitialState(), phase: 3 as const };
-    expect(isBuildingUnlocked(state, 'dysonSwarm')).toBe(false);
-    expect(isBuildingUnlocked(state, 'whiteDwarfReactor')).toBe(false);
-    expect(isBuildingUnlocked(state, 'stellarMirror')).toBe(false);
-  });
-
-  test('Dyson Swarm stays locked in Phase 4 until Dyson Swarms research is purchased', () => {
-    const state = { ...createInitialState(), phase: 4 as const };
-    expect(isBuildingUnlocked(state, 'dysonSwarm')).toBe(false);
-    const withResearch = { ...state, research: ['dysonSwarms' as const] };
-    expect(isBuildingUnlocked(withResearch, 'dysonSwarm')).toBe(true);
-  });
-
-  test('White Dwarf Reactor and Stellar Mirror stay locked in Phase 4 until Dyson Swarms research is purchased', () => {
-    const state = { ...createInitialState(), phase: 4 as const };
-    expect(isBuildingUnlocked(state, 'whiteDwarfReactor')).toBe(false);
-    expect(isBuildingUnlocked(state, 'stellarMirror')).toBe(false);
-    const withResearch = { ...state, research: ['dysonSwarms' as const] };
-    expect(isBuildingUnlocked(withResearch, 'whiteDwarfReactor')).toBe(true);
-    expect(isBuildingUnlocked(withResearch, 'stellarMirror')).toBe(true);
+  test('Space Elevator (the other Orbital Construction unlock) has no fully-lit requirement', () => {
+    const state = { ...createInitialState(), phase: 10, research: ['orbitalConstruction' as const] };
+    expect(isBuildingUnlocked(state, 'spaceElevator')).toBe(true);
   });
 });
 
 describe('currentPhase', () => {
-  test('returns the phase recorded on state', () => {
-    expect(currentPhase(createInitialState())).toBe(1);
+  test('returns the state\'s phase', () => {
+    expect(currentPhase({ ...createInitialState(), phase: 7 })).toBe(7);
   });
 });
 
 describe('advancePhase', () => {
-  test('stays in Phase 1 with no Lighthouse owned', () => {
-    expect(advancePhase(createInitialState()).phase).toBe(1);
+  // Eras require a minimum number of ticks before they can advance (issue
+  // #7), so every fixture below grants enough dwell time via phaseSince.
+  function withDwellTime<T extends ReturnType<typeof createInitialState>>(state: T): T {
+    return { ...state, tick: 9999, phaseSince: 0 };
+  }
+
+  test('stays in Fire Age with no Torch and no Fire Making research', () => {
+    const next = advancePhase(withDwellTime(createInitialState()));
+    expect(next.phase).toBe(1);
   });
 
-  test('advances to Phase 2 once the first Lighthouse is owned', () => {
-    const state = { ...createInitialState(), buildings: { ...createInitialState().buildings, lighthouse: 1 } };
+  test('advances Fire Age -> Lamp Age once Fire Making research is bought AND a Torch is owned', () => {
+    const state = withDwellTime({
+      ...createInitialState(),
+      research: ['fireMaking' as const],
+      buildings: { ...createInitialState().buildings, torch: 1 },
+    });
     expect(advancePhase(state).phase).toBe(2);
   });
 
-  test('does not regress to Phase 1 once already in Phase 2', () => {
-    const state = { ...createInitialState(), phase: 2 };
-    expect(advancePhase(state).phase).toBe(2);
+  test('stays in Fire Age with Fire Making research bought but no Torch owned', () => {
+    const state = withDwellTime({ ...createInitialState(), research: ['fireMaking' as const] });
+    expect(advancePhase(state).phase).toBe(1);
+  });
+
+  test('stays in Fire Age with a Torch owned but Fire Making research not recorded as bought', () => {
+    // Artificial state (Torch is normally research-gated to buy) that
+    // exercises the AND requirement directly: owning the secondary building
+    // alone, without the era's research card, no longer advances the era.
+    const state = withDwellTime({ ...createInitialState(), buildings: { ...createInitialState().buildings, torch: 1 } });
+    expect(advancePhase(state).phase).toBe(1);
+  });
+
+  test('advancing Lamp Age -> Gas Age reveals fuel', () => {
+    const state = withDwellTime({
+      ...createInitialState(),
+      phase: 2,
+      hiddenResources: ['fuel', 'materials', 'exotic'] as ResourceId[],
+      research: ['oilExtraction' as const],
+      buildings: { ...createInitialState().buildings, oilLamp: 1 },
+    });
+    const next = advancePhase(state);
+    expect(next.phase).toBe(3);
+    expect(next.hiddenResources.sort()).toEqual(['exotic', 'materials']);
+  });
+
+  test('advancing LED Age -> Nuclear Age reveals materials', () => {
+    const state = withDwellTime({
+      ...createInitialState(),
+      phase: 6,
+      hiddenResources: ['materials', 'exotic'] as ResourceId[],
+      research: ['semiconductorPhysics' as const],
+      buildings: { ...createInitialState().buildings, chipFactory: 1 },
+    });
+    const next = advancePhase(state);
+    expect(next.phase).toBe(7);
+    expect(next.hiddenResources.sort()).toEqual(['exotic']);
+  });
+
+  test('advancing Nuclear Age -> Fusion Age reveals exotic matter', () => {
+    const state = withDwellTime({
+      ...createInitialState(),
+      phase: 7,
+      hiddenResources: ['exotic'] as ResourceId[],
+      research: ['nuclearEngineering' as const],
+      buildings: { ...createInitialState().buildings, nuclearReactor: 1 },
+    });
+    const next = advancePhase(state);
+    expect(next.phase).toBe(8);
+    expect(next.hiddenResources).toEqual([]);
+  });
+
+  test('advances every remaining era through Galactic Age -> Cosmic Age', () => {
+    const state = withDwellTime({
+      ...createInitialState(),
+      phase: 14,
+      research: ['blackHolePhysics' as const],
+      buildings: { ...createInitialState().buildings, blackHoleHarvester: 1 },
+    });
+    expect(advancePhase(state).phase).toBe(15);
+  });
+
+  test('Cosmic Age (the final era) never advances further', () => {
+    const state = withDwellTime({ ...createInitialState(), phase: 15, research: ['universalComputation' as const] });
+    expect(advancePhase(state).phase).toBe(15);
   });
 
   test('does not mutate the original state', () => {
-    const state = { ...createInitialState(), buildings: { ...createInitialState().buildings, lighthouse: 1 } };
+    const state = withDwellTime({
+      ...createInitialState(),
+      research: ['fireMaking' as const],
+      buildings: { ...createInitialState().buildings, torch: 1 },
+    });
     advancePhase(state);
     expect(state.phase).toBe(1);
   });
 
-  test('advances to Phase 3 once the first Stadium Lights is owned', () => {
-    const state = {
-      ...createInitialState(),
-      phase: 2 as const,
-      buildings: { ...createInitialState().buildings, stadiumLights: 1 },
-    };
-    expect(advancePhase(state).phase).toBe(3);
-  });
+  // Issue #7: minimum era exposure - even with the research+building trigger
+  // otherwise satisfied, an era can't be skipped through in a single tick.
+  describe('minimum era exposure', () => {
+    test('blocks advancing before the minimum dwell time has elapsed', () => {
+      const state = {
+        ...createInitialState(),
+        tick: 1,
+        phaseSince: 0,
+        research: ['fireMaking' as const],
+        buildings: { ...createInitialState().buildings, torch: 1 },
+      };
+      expect(advancePhase(state).phase).toBe(1);
+    });
 
-  test('does not regress to Phase 2 once already in Phase 3', () => {
-    const state = { ...createInitialState(), phase: 3 as const };
-    expect(advancePhase(state).phase).toBe(3);
-  });
+    test('allows advancing once the minimum dwell time has elapsed', () => {
+      const state = {
+        ...createInitialState(),
+        tick: 9999,
+        phaseSince: 0,
+        research: ['fireMaking' as const],
+        buildings: { ...createInitialState().buildings, torch: 1 },
+      };
+      expect(advancePhase(state).phase).toBe(2);
+    });
 
-  // Spec: contrast is "hidden until midgame" - Phase 3 (Planet) is midgame.
-  test('reveals contrast on advancing to Phase 3, but wonder stays hidden', () => {
-    const state = {
-      ...createInitialState(),
-      phase: 2 as const,
-      buildings: { ...createInitialState().buildings, stadiumLights: 1 },
-    };
-    const next = advancePhase(state);
-    expect(next.hiddenResources).not.toContain('contrast');
-    expect(next.hiddenResources).toContain('wonder');
-  });
+    test('records phaseSince as the advancing tick on a successful advance', () => {
+      const state = {
+        ...createInitialState(),
+        tick: 9999,
+        phaseSince: 0,
+        research: ['fireMaking' as const],
+        buildings: { ...createInitialState().buildings, torch: 1 },
+      };
+      expect(advancePhase(state).phaseSince).toBe(9999);
+    });
 
-  test('does not touch hiddenResources when not transitioning to Phase 3', () => {
-    const state = createInitialState();
-    expect(advancePhase(state).hiddenResources).toEqual(state.hiddenResources);
-  });
-
-  test('advances to Phase 4 once the first Orbital Mirror is owned, and reveals wonder', () => {
-    const state = {
-      ...createInitialState(),
-      phase: 3 as const,
-      buildings: { ...createInitialState().buildings, orbitalMirror: 1 },
-    };
-    const next = advancePhase(state);
-    expect(next.phase).toBe(4);
-    expect(next.hiddenResources).not.toContain('wonder');
-  });
-
-  test('does not regress to Phase 3 once already in Phase 4', () => {
-    const state = { ...createInitialState(), phase: 4 as const };
-    expect(advancePhase(state).phase).toBe(4);
-  });
-
-  test('advances to Phase 5 once the first Dyson Swarm is owned', () => {
-    const state = {
-      ...createInitialState(),
-      phase: 4 as const,
-      buildings: { ...createInitialState().buildings, dysonSwarm: 1 },
-    };
-    expect(advancePhase(state).phase).toBe(5);
-  });
-
-  test('advances to Phase 5 once Dyson Swarms research is purchased, even with no Dyson Swarm owned', () => {
-    const state = { ...createInitialState(), phase: 4 as const, research: ['dysonSwarms' as const] };
-    expect(advancePhase(state).phase).toBe(5);
-  });
-
-  test('does not regress to Phase 4 once already in Phase 5', () => {
-    const state = { ...createInitialState(), phase: 5 as const };
-    expect(advancePhase(state).phase).toBe(5);
+    test('leaves phaseSince untouched when the era does not advance', () => {
+      const state = { ...createInitialState(), tick: 1, phaseSince: 0 };
+      expect(advancePhase(state).phaseSince).toBe(0);
+    });
   });
 });

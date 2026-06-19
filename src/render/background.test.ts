@@ -92,11 +92,37 @@ describe('updateBackground', () => {
     expect(brightRadius).toBeGreaterThan(dimRadius);
   });
 
-  test('Phase 3+ shows a fixed space sky with no sun, moon, or clouds', () => {
-    const { handle } = build(stateWith({ phase: 3, dayNightClock: NOON }), 0);
+  test('Orbital Age+ shows a fixed space sky with no sun, moon, or clouds', () => {
+    const { handle } = build(stateWith({ phase: 10, dayNightClock: NOON }), 0);
     expect(handle.sunGroup.style.display).toBe('none');
     expect(handle.moonGroup.style.display).toBe('none');
     expect(handle.cloudGroup.style.display).toBe('none');
     expect(handle.starGroup.style.display).not.toBe('none');
+  });
+
+  test('terrestrial stars dim further as darkness falls, beyond the local night/light fade', () => {
+    const { handle: natural } = build(stateWith({ dayNightClock: MIDNIGHT, darkness: 1 }), 0);
+    const naturalOpacity = Number(natural.starCircles[0]!.getAttribute('opacity'));
+
+    const { handle: dim } = build(stateWith({ dayNightClock: MIDNIGHT, darkness: 0.2 }), 0);
+    const dimOpacity = Number(dim.starCircles[0]!.getAttribute('opacity'));
+
+    expect(dimOpacity).toBeLessThan(naturalOpacity);
+  });
+
+  test('space-scene stars fade to invisible as darkness approaches zero', () => {
+    const { handle } = build(stateWith({ phase: 10, dayNightClock: NOON, darkness: 0 }), 0);
+    const opacity = Number(handle.starCircles[0]!.getAttribute('opacity'));
+    expect(opacity).toBeCloseTo(0, 2);
+  });
+
+  test('space-scene sky washes bright as darkness approaches zero (universe permanently illuminated)', () => {
+    const { handle: preserved } = build(stateWith({ phase: 10, dayNightClock: NOON, darkness: 1 }), 0);
+    const preservedTop = preserved.skyTopStop.getAttribute('stop-color');
+
+    const { handle: illuminated } = build(stateWith({ phase: 10, dayNightClock: NOON, darkness: 0 }), 0);
+    const illuminatedTop = illuminated.skyTopStop.getAttribute('stop-color');
+
+    expect(illuminatedTop).not.toBe(preservedTop);
   });
 });

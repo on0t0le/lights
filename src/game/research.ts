@@ -6,7 +6,7 @@ export interface ResearchCard {
   name: string;
   cost: number;
   requires: ResearchId[];
-  /** Phase that must be reached before this card can appear. */
+  /** Era that must be reached before this card can appear. See state.ts's ERAS. */
   phase: number;
   /** Multiplies lumen production when purchased (compounds across cards). */
   lumenMultiplier?: number;
@@ -14,150 +14,292 @@ export interface ResearchCard {
   unlocks?: BuildingId[];
   /**
    * Shifts `state.darkness` when purchased: negative eliminates darkness
-   * (Phase 5's "Remove Darkness" research), positive restores/preserves it
-   * (the Balance-ending branch). Neutral (no field) for cards that don't
+   * (the Cosmic Age's "Remove Darkness" branch), positive restores/preserves
+   * it (the Balance-ending branch). Neutral (no field) for cards that don't
    * touch darkness at all.
    */
   darknessDelta?: number;
+  /**
+   * Which endgame branch this card belongs to (Cosmic Age only) - shown on
+   * the card (ui/cards.ts) so the two paths read as distinct choices instead
+   * of one undifferentiated research list.
+   */
+  branch?: 'eliminate' | 'preserve';
+  /** Minimum accumulated wonder required to buy this card, on top of `requires`. */
+  wonderRequired?: number;
+  /** Minimum owned count of a building required to buy this card, on top of `requires`. */
+  requiresBuilding?: { id: BuildingId; count: number };
 }
 
 /**
- * Full spec catalog (Candle Making through Balanced Universe). Cards with
- * phase >= 3 are defined but never surface in availableResearch() yet -
- * Phase 3+ systems (Planet, Space, Remove Darkness) aren't implemented.
+ * One progression card per era, each requiring the previous era's card and
+ * unlocking that era's secondary (power/production) building — together
+ * they form the tech spine spanning Fire Age through Cosmic Age. Artificial
+ * Sleep softens (doesn't remove) the happiness hit from harsh lights and
+ * power plants (happiness.ts) - foreshadows Ending 1's "population enters
+ * permanent artificial sleep": numbed to the harm, not freed of it.
+ *
+ * The Cosmic Age (15) ends in two mutually exclusive-in-spirit branches,
+ * tagged so the UI (ui/cards.ts) can label them. Eliminate chips away a
+ * named slice of the world's darkness per card, ending at exactly -1 (fully
+ * eliminated) once Black Hole Illumination is bought - see darkness.ts,
+ * which sums these deltas with no other source of erosion. Preserve instead
+ * protects what's left, culminating in Balanced Universe.
  */
 export const RESEARCH: Record<ResearchId, ResearchCard> = {
-  candleMaking: { id: 'candleMaking', name: 'Candle Making', cost: 40, requires: [], phase: 1, lumenMultiplier: 1.2 },
-  streetElectricity: {
-    id: 'streetElectricity',
-    name: 'Street Electricity',
-    cost: 600,
-    requires: ['candleMaking'],
+  fireMaking: {
+    id: 'fireMaking',
+    name: 'Fire Making',
+    cost: 30,
+    requires: [],
     phase: 1,
-    lumenMultiplier: 1.15,
-    unlocks: ['streetlamp'],
+    lumenMultiplier: 1.2,
+    unlocks: ['torch'],
   },
-  leds: { id: 'leds', name: 'LEDs', cost: 5000, requires: ['streetElectricity'], phase: 2, lumenMultiplier: 1.5 },
-  fusionPower: {
-    id: 'fusionPower',
-    name: 'Fusion Power',
-    cost: 40000,
-    requires: ['leds'],
+  oilExtraction: {
+    id: 'oilExtraction',
+    name: 'Oil Extraction',
+    cost: 250,
+    requires: ['fireMaking'],
+    phase: 2,
+    lumenMultiplier: 1.18,
+    unlocks: ['oilLamp'],
+  },
+  gasDistribution: {
+    id: 'gasDistribution',
+    name: 'Gas Distribution',
+    cost: 2000,
+    requires: ['oilExtraction'],
     phase: 3,
+    lumenMultiplier: 1.2,
+    unlocks: ['gasWorks'],
+  },
+  electricLighting: {
+    id: 'electricLighting',
+    name: 'Electric Lighting',
+    cost: 15000,
+    requires: ['gasDistribution'],
+    phase: 4,
+    lumenMultiplier: 1.25,
+    unlocks: ['powerPlant'],
+  },
+  highVoltageTransmission: {
+    id: 'highVoltageTransmission',
+    name: 'High Voltage Transmission',
+    cost: 120000,
+    requires: ['electricLighting'],
+    phase: 5,
+    lumenMultiplier: 1.3,
+    unlocks: ['transformerStation'],
+  },
+  semiconductorPhysics: {
+    id: 'semiconductorPhysics',
+    name: 'Semiconductor Physics',
+    cost: 900000,
+    requires: ['highVoltageTransmission'],
+    phase: 6,
+    lumenMultiplier: 1.35,
+    unlocks: ['chipFactory'],
+  },
+  nuclearEngineering: {
+    id: 'nuclearEngineering',
+    name: 'Nuclear Engineering',
+    cost: 7000000,
+    requires: ['semiconductorPhysics'],
+    phase: 7,
+    lumenMultiplier: 1.4,
+    unlocks: ['nuclearReactor'],
+  },
+  fusionContainment: {
+    id: 'fusionContainment',
+    name: 'Fusion Containment',
+    cost: 50000000,
+    requires: ['nuclearEngineering'],
+    phase: 8,
     lumenMultiplier: 1.4,
     unlocks: ['fusionReactor'],
   },
-  orbitalMirrors: {
-    id: 'orbitalMirrors',
-    name: 'Orbital Mirrors',
-    cost: 120000,
-    requires: ['fusionPower'],
-    phase: 3,
+  coldFusionTheory: {
+    id: 'coldFusionTheory',
+    name: 'Cold Fusion Theory',
+    cost: 400000000,
+    requires: ['fusionContainment'],
+    phase: 9,
+    lumenMultiplier: 1.3,
+    unlocks: ['compactFusionFactory'],
+  },
+  // Orbital Construction unlocks both Orbital Age buildings, but Orbital
+  // Mirror keeps its existing special unlock rule (progression.ts): research
+  // AND a fully-lit civilization, so the player can't leave the ground
+  // without first covering Cold Fusion Age in light.
+  orbitalConstruction: {
+    id: 'orbitalConstruction',
+    name: 'Orbital Construction',
+    cost: 3000000000,
+    requires: ['coldFusionTheory'],
+    phase: 10,
     lumenMultiplier: 1.5,
-    unlocks: ['orbitalMirror'],
+    unlocks: ['orbitalMirror', 'spaceElevator'],
   },
-  // Phase 4 (Space): all three Phase 4 buildings - including Dyson Swarm
-  // itself - stay locked until this card is bought, so the building (and
-  // its swarm-ring visual) can never appear before the research does.
-  dysonSwarms: {
-    id: 'dysonSwarms',
-    name: 'Dyson Swarms',
-    cost: 350000,
-    requires: ['orbitalMirrors'],
-    phase: 4,
+  stellarEngineering: {
+    id: 'stellarEngineering',
+    name: 'Stellar Engineering',
+    cost: 25000000000,
+    requires: ['orbitalConstruction'],
+    phase: 11,
     lumenMultiplier: 1.4,
-    unlocks: ['dysonSwarm', 'whiteDwarfReactor', 'stellarMirror'],
+    unlocks: ['asteroidMining'],
   },
-  // Reduces the Phase 3 insomnia/sleep-disruption penalty (happiness.ts) -
-  // foreshadows the spec's Ending 1 ("population enters permanent artificial sleep").
-  artificialSleep: { id: 'artificialSleep', name: 'Artificial Sleep', cost: 60000, requires: ['leds'], phase: 3 },
-  // Phase 5 (Remove Darkness): each Illuminate card chips away a named slice
-  // of the world's darkness; Black Hole Illumination finishes the job
-  // (spec: "eventually only black holes remain dark").
+  megastructureEngineering: {
+    id: 'megastructureEngineering',
+    name: 'Megastructure Engineering',
+    cost: 180000000000,
+    requires: ['stellarEngineering'],
+    phase: 12,
+    lumenMultiplier: 1.4,
+    unlocks: ['swarmFabricator'],
+  },
+  interstellarLogistics: {
+    id: 'interstellarLogistics',
+    name: 'Interstellar Logistics',
+    cost: 1500000000000,
+    requires: ['megastructureEngineering'],
+    phase: 13,
+    lumenMultiplier: 1.3,
+    unlocks: ['stellarConstructor'],
+  },
+  blackHolePhysics: {
+    id: 'blackHolePhysics',
+    name: 'Black Hole Physics',
+    cost: 12000000000000,
+    requires: ['interstellarLogistics'],
+    phase: 14,
+    lumenMultiplier: 1.3,
+    unlocks: ['blackHoleHarvester'],
+  },
+  universalComputation: {
+    id: 'universalComputation',
+    name: 'Universal Computation',
+    cost: 90000000000000,
+    requires: ['blackHolePhysics'],
+    phase: 15,
+    lumenMultiplier: 1.2,
+    unlocks: ['realityFoundry'],
+  },
+  artificialSleep: {
+    id: 'artificialSleep',
+    name: 'Artificial Sleep',
+    cost: 1200000,
+    requires: ['semiconductorPhysics'],
+    phase: 6,
+  },
   eliminateShadows: {
     id: 'eliminateShadows',
     name: 'Eliminate Shadows',
-    cost: 300000,
-    requires: ['dysonSwarms'],
-    phase: 5,
+    cost: 200000000000000,
+    requires: ['universalComputation'],
+    phase: 15,
     darknessDelta: -0.2,
+    branch: 'eliminate',
   },
   illuminateOceans: {
     id: 'illuminateOceans',
     name: 'Illuminate Oceans',
-    cost: 600000,
+    cost: 400000000000000,
     requires: ['eliminateShadows'],
-    phase: 5,
+    phase: 15,
     darknessDelta: -0.2,
+    branch: 'eliminate',
   },
   illuminateNights: {
     id: 'illuminateNights',
     name: 'Illuminate Nights',
-    cost: 1200000,
+    cost: 800000000000000,
     requires: ['illuminateOceans'],
-    phase: 5,
+    phase: 15,
     darknessDelta: -0.2,
+    branch: 'eliminate',
   },
   illuminateDeepSpace: {
     id: 'illuminateDeepSpace',
     name: 'Illuminate Deep Space',
-    cost: 2500000,
+    cost: 1600000000000000,
     requires: ['illuminateNights'],
-    phase: 5,
+    phase: 15,
     darknessDelta: -0.2,
+    branch: 'eliminate',
   },
   blackHoleIllumination: {
     id: 'blackHoleIllumination',
     name: 'Black Hole Illumination',
-    cost: 5000000,
+    cost: 3200000000000000,
     requires: ['illuminateDeepSpace'],
-    phase: 5,
-    darknessDelta: -0.2, // brings the four Illuminate cards' total to -1: darkness fully eliminated
+    phase: 15,
+    darknessDelta: -0.2, // brings the five Eliminate cards' total to -1: darkness fully eliminated -> Infinite Light ending
+    branch: 'eliminate',
   },
-  // Alternate branch: instead of eliminating the rest, the player chooses to
-  // preserve it - the path toward Ending 2 (Balance) rather than Ending 1.
+  // Preserve branch: instead of eliminating the rest, the player chooses to
+  // protect it - the path toward Ending 2 (Balance) rather than Ending 1.
   darknessPreservation: {
     id: 'darknessPreservation',
     name: 'Darkness Preservation',
-    cost: 800000,
-    requires: ['artificialSleep'],
-    phase: 5,
+    cost: 500000000000000,
+    requires: ['artificialSleep', 'universalComputation'],
+    phase: 15,
     darknessDelta: 0.3,
+    branch: 'preserve',
   },
   wonderStudies: {
     id: 'wonderStudies',
     name: 'Wonder Studies',
-    cost: 1500000,
+    cost: 1000000000000000,
     requires: ['darknessPreservation'],
-    phase: 5,
+    phase: 15,
+    branch: 'preserve',
   },
+  // The Balance ending's final card - also requires having actually
+  // accumulated wonder (not just the research chain), so the player has to
+  // have been nurturing darkness/wonder, not just unlocking cards in order.
   balancedUniverse: {
     id: 'balancedUniverse',
     name: 'Balanced Universe',
-    cost: 3000000,
+    cost: 2000000000000000,
     requires: ['wonderStudies'],
-    phase: 5,
-    darknessDelta: 0.5, // restores night/clouds/shadows/eclipses - the Balance ending
+    phase: 15,
+    darknessDelta: 0.5, // restores night/shadows/eclipses - the Balance ending
+    branch: 'preserve',
+    wonderRequired: 50,
   },
 };
+
+/** Materials' research-cost discount (issue #2): cost / (1 + MAT_RESEARCH_K * log10(1 + materials)). */
+const MAT_RESEARCH_K = 0.1;
+
+/** A card's lumen cost after the materials discount — the actual price `buyResearch` charges. */
+export function researchCost(state: GameState, id: ResearchId): number {
+  const discount = 1 + MAT_RESEARCH_K * Math.log10(1 + state.resources.materials);
+  return RESEARCH[id].cost / discount;
+}
 
 export function availableResearch(state: GameState): ResearchCard[] {
   return (Object.values(RESEARCH) as ResearchCard[]).filter(
     (card) =>
       card.phase <= state.phase &&
       !state.research.includes(card.id) &&
-      card.requires.every((id) => state.research.includes(id))
+      card.requires.every((id) => state.research.includes(id)) &&
+      state.resources.wonder >= (card.wonderRequired ?? 0) &&
+      (!card.requiresBuilding || state.buildings[card.requiresBuilding.id] >= card.requiresBuilding.count)
   );
 }
 
 /** Buys `id` if it's currently available and affordable. Returns `state` unchanged otherwise. */
 export function buyResearch(state: GameState, id: ResearchId): GameState {
-  const card = RESEARCH[id];
+  const cost = researchCost(state, id);
   const isAvailable = availableResearch(state).some((c) => c.id === id);
-  if (!isAvailable || !canAfford(state, 'lumens', card.cost)) {
+  if (!isAvailable || !canAfford(state, 'lumens', cost)) {
     return state;
   }
-  const spent = spendResource(state, 'lumens', card.cost);
+  const spent = spendResource(state, 'lumens', cost);
   return { ...spent, research: [...spent.research, id] };
 }
 
@@ -174,4 +316,9 @@ export function isUnlockedByResearch(state: GameState, buildingId: BuildingId): 
 /** Sum of all purchased cards' darknessDelta; 0 (neutral) with no relevant research. */
 export function researchDarknessDelta(state: GameState): number {
   return state.research.reduce((sum, id) => sum + (RESEARCH[id].darknessDelta ?? 0), 0);
+}
+
+/** True once any Preserve-branch card has been purchased — darkness.ts uses this to hold darkness at a floor instead of additively overshooting (issue #4). */
+export function hasPreserveResearch(state: GameState): boolean {
+  return state.research.some((id) => RESEARCH[id].branch === 'preserve');
 }

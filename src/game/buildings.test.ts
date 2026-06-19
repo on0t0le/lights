@@ -1,127 +1,240 @@
 import { describe, expect, test } from 'vitest';
-import { BUILDINGS, buildingCost, lumenOutput, energyUpkeep, energyProduction } from './buildings';
+import { ERAS } from '../state';
+import {
+  BUILDINGS,
+  buildingCost,
+  buildingMaterialCost,
+  lumenOutput,
+  energyUpkeep,
+  energyProduction,
+  fuelUpkeep,
+  fuelProduction,
+  materialsProduction,
+  exoticRequired,
+  exoticProduction,
+  maintenanceUpkeep,
+} from './buildings';
 
 describe('BUILDINGS catalog', () => {
-  test('defines the four Phase 1, three Phase 2, three Phase 3, and three Phase 4 buildings', () => {
-    expect(Object.keys(BUILDINGS).sort()).toEqual(
-      [
-        'candle',
-        'lantern',
-        'lighthouse',
-        'streetlamp',
-        'powerPlant',
-        'neonSign',
-        'stadiumLights',
-        'solarFarm',
-        'fusionReactor',
-        'orbitalMirror',
-        'dysonSwarm',
-        'whiteDwarfReactor',
-        'stellarMirror',
-      ].sort()
-    );
+  test('defines exactly two buildings per era — a light source and a secondary', () => {
+    expect(Object.keys(BUILDINGS)).toHaveLength(ERAS.length * 2);
   });
 
-  test('Phase 1/2/3/4 buildings are tagged with their phase', () => {
-    for (const id of ['candle', 'lantern', 'streetlamp', 'lighthouse'] as const) {
-      expect(BUILDINGS[id].phase).toBe(1);
-    }
-    for (const id of ['powerPlant', 'neonSign', 'stadiumLights'] as const) {
-      expect(BUILDINGS[id].phase).toBe(2);
-    }
-    for (const id of ['solarFarm', 'fusionReactor', 'orbitalMirror'] as const) {
-      expect(BUILDINGS[id].phase).toBe(3);
-    }
-    for (const id of ['dysonSwarm', 'whiteDwarfReactor', 'stellarMirror'] as const) {
-      expect(BUILDINGS[id].phase).toBe(4);
+  test('every era light source named in ERAS exists in BUILDINGS at that era', () => {
+    for (const era of ERAS) {
+      expect(BUILDINGS[era.lightSource]).toBeDefined();
+      expect(BUILDINGS[era.lightSource].phase).toBe(era.id);
     }
   });
 
-  test('White Dwarf Reactor produces energy and consumes none', () => {
-    expect(BUILDINGS.whiteDwarfReactor.energyProducedPerUnit).toBeGreaterThan(0);
-    expect(BUILDINGS.whiteDwarfReactor.energyConsumedPerUnit).toBe(0);
+  test('every building defines a happinessPerUnit', () => {
+    for (const id of Object.keys(BUILDINGS) as (keyof typeof BUILDINGS)[]) {
+      expect(typeof BUILDINGS[id].happinessPerUnit).toBe('number');
+    }
   });
 
-  test('Dyson Swarm and Stellar Mirror produce a lot of light but consume energy', () => {
-    for (const id of ['dysonSwarm', 'stellarMirror'] as const) {
-      expect(BUILDINGS[id].lumensPerUnit).toBeGreaterThan(BUILDINGS.orbitalMirror.lumensPerUnit);
+  test('gentle Fire Age and Lamp Age lights raise happiness', () => {
+    for (const id of ['campfire', 'torch', 'candle', 'oilLamp'] as const) {
+      expect(BUILDINGS[id].happinessPerUnit).toBeGreaterThan(0);
+    }
+  });
+
+  test('every building from the Gas Age on costs happiness', () => {
+    for (const era of ERAS.filter((e) => e.id >= 3)) {
+      expect(BUILDINGS[era.lightSource].happinessPerUnit).toBeLessThan(0);
+    }
+  });
+
+  test('Fire Age and Lamp Age buildings draw no energy, fuel, or exotic matter', () => {
+    for (const id of ['campfire', 'torch', 'candle', 'oilLamp'] as const) {
+      expect(BUILDINGS[id].energyConsumedPerUnit).toBe(0);
+      expect(BUILDINGS[id].fuelConsumedPerUnit).toBe(0);
+      expect(BUILDINGS[id].exoticRequiredPerUnit).toBe(0);
+    }
+  });
+
+  test('Gas Age through Nuclear Age lights consume energy', () => {
+    for (const id of ['gasLamp', 'incandescentBulb', 'arcLamp', 'ledLamp', 'nuclearLightGrid'] as const) {
       expect(BUILDINGS[id].energyConsumedPerUnit).toBeGreaterThan(0);
     }
   });
 
-  test('Solar Farm and Fusion Reactor produce energy and consume none', () => {
-    for (const id of ['solarFarm', 'fusionReactor'] as const) {
-      expect(BUILDINGS[id].energyProducedPerUnit).toBeGreaterThan(0);
+  test('Fusion Age through Cosmic Age lights require exotic matter reserve instead of energy', () => {
+    for (const id of [
+      'fusionSun',
+      'planetaryLightGrid',
+      'orbitalMirror',
+      'starReflector',
+      'dysonSphere',
+      'artificialStar',
+      'galaxyNetwork',
+      'cosmicBeacon',
+    ] as const) {
+      expect(BUILDINGS[id].exoticRequiredPerUnit).toBeGreaterThan(0);
       expect(BUILDINGS[id].energyConsumedPerUnit).toBe(0);
     }
   });
 
-  test('Orbital Mirror produces a lot of light but consumes energy', () => {
-    expect(BUILDINGS.orbitalMirror.lumensPerUnit).toBeGreaterThan(BUILDINGS.lighthouse.lumensPerUnit);
-    expect(BUILDINGS.orbitalMirror.energyConsumedPerUnit).toBeGreaterThan(0);
+  test('Gas Works is the first fuel refinery', () => {
+    expect(BUILDINGS.gasWorks.fuelProducedPerUnit).toBeGreaterThan(0);
   });
 
-  test('Power Plant produces energy and consumes none', () => {
-    expect(BUILDINGS.powerPlant.energyProducedPerUnit).toBeGreaterThan(0);
-    expect(BUILDINGS.powerPlant.energyConsumedPerUnit).toBe(0);
+  test('Power Plant and Transformer Station burn fuel to produce energy', () => {
+    for (const id of ['powerPlant', 'transformerStation'] as const) {
+      expect(BUILDINGS[id].fuelConsumedPerUnit).toBeGreaterThan(0);
+      expect(BUILDINGS[id].energyProducedPerUnit).toBeGreaterThan(0);
+    }
   });
 
-  test('Neon Sign and Stadium Lights consume energy and produce none', () => {
-    for (const id of ['neonSign', 'stadiumLights'] as const) {
-      expect(BUILDINGS[id].energyConsumedPerUnit).toBeGreaterThan(0);
-      expect(BUILDINGS[id].energyProducedPerUnit).toBe(0);
+  test('Chip Factory and Nuclear Reactor produce materials', () => {
+    expect(BUILDINGS.chipFactory.materialsPerUnit).toBeGreaterThan(0);
+    expect(BUILDINGS.nuclearReactor.materialsPerUnit).toBeGreaterThan(0);
+  });
+
+  // Materials stay a live stream past the Nuclear Age too (issue #2: not just
+  // a megastructure savings account) - every Fusion Age+ secondary keeps
+  // producing them.
+  test('every Fusion Age and later secondary also produces materials', () => {
+    for (const id of [
+      'fusionReactor',
+      'compactFusionFactory',
+      'spaceElevator',
+      'asteroidMining',
+      'swarmFabricator',
+      'stellarConstructor',
+      'blackHoleHarvester',
+      'realityFoundry',
+    ] as const) {
+      expect(BUILDINGS[id].materialsPerUnit).toBeGreaterThan(0);
+    }
+  });
+
+  // Late-game sink (issue #9): Orbital Age+ light sources cost lumens upkeep
+  // per owned unit, scaling with how much they themselves produce, so
+  // unchecked late-game building eventually plateaus instead of running away.
+  test('Orbital Age and later light sources carry a maintenance upkeep', () => {
+    for (const era of ERAS.filter((e) => e.id >= 10)) {
+      expect(BUILDINGS[era.lightSource].maintenancePerUnit).toBeGreaterThan(0);
+    }
+  });
+
+  test('buildings before the Orbital Age carry no maintenance upkeep', () => {
+    for (const era of ERAS.filter((e) => e.id < 10)) {
+      expect(BUILDINGS[era.lightSource].maintenancePerUnit).toBe(0);
+    }
+  });
+
+  test('Orbital Age and later buildings cost materials to build, a one-time megastructure cost', () => {
+    for (const era of ERAS.filter((e) => e.id >= 10)) {
+      expect(buildingMaterialCost(era.lightSource)).toBeGreaterThan(0);
+    }
+  });
+
+  test('every era light source produces more lumens than the previous era', () => {
+    for (let i = 1; i < ERAS.length; i++) {
+      expect(BUILDINGS[ERAS[i]!.lightSource].lumensPerUnit).toBeGreaterThan(
+        BUILDINGS[ERAS[i - 1]!.lightSource].lumensPerUnit
+      );
     }
   });
 });
 
 describe('buildingCost', () => {
   test('base cost equals the building base cost when none owned', () => {
-    expect(buildingCost('candle', 0)).toBe(BUILDINGS.candle.baseCost);
+    expect(buildingCost('campfire', 0)).toBe(BUILDINGS.campfire.baseCost);
   });
 
   test('cost scales up with each owned unit', () => {
-    const first = buildingCost('candle', 0);
-    const second = buildingCost('candle', 1);
+    const first = buildingCost('campfire', 0);
+    const second = buildingCost('campfire', 1);
     expect(second).toBeGreaterThan(first);
+  });
+});
+
+describe('buildingMaterialCost', () => {
+  test('zero for buildings before the Orbital Age', () => {
+    expect(buildingMaterialCost('campfire')).toBe(0);
+    expect(buildingMaterialCost('powerPlant')).toBe(0);
+  });
+
+  test('positive from the Orbital Age on', () => {
+    expect(buildingMaterialCost('orbitalMirror')).toBeGreaterThan(0);
+    expect(buildingMaterialCost('dysonSphere')).toBeGreaterThan(0);
   });
 });
 
 describe('lumenOutput', () => {
   test('zero owned produces zero lumens', () => {
-    expect(lumenOutput('candle', 0)).toBe(0);
+    expect(lumenOutput('campfire', 0)).toBe(0);
   });
 
   test('output scales linearly with owned count', () => {
-    expect(lumenOutput('candle', 2)).toBe(BUILDINGS.candle.lumensPerUnit * 2);
+    expect(lumenOutput('campfire', 2)).toBe(BUILDINGS.campfire.lumensPerUnit * 2);
   });
 });
 
-describe('energyUpkeep', () => {
-  // Spec: energy consumption is introduced in Phase 2 (City), not Phase 1.
-  // All four Village buildings run on no energy; the field exists for later phases.
-  test('no Phase 1 building requires energy', () => {
-    expect(energyUpkeep('candle', 5)).toBe(0);
-    expect(energyUpkeep('lantern', 5)).toBe(0);
-    expect(energyUpkeep('streetlamp', 5)).toBe(0);
-    expect(energyUpkeep('lighthouse', 5)).toBe(0);
-  });
-
-  test('Phase 2 consumers require energy proportional to owned count', () => {
-    expect(energyUpkeep('neonSign', 3)).toBe(BUILDINGS.neonSign.energyConsumedPerUnit * 3);
-    expect(energyUpkeep('stadiumLights', 2)).toBe(BUILDINGS.stadiumLights.energyConsumedPerUnit * 2);
-  });
-});
-
-describe('energyProduction', () => {
-  test('zero owned produces zero energy', () => {
-    expect(energyProduction('powerPlant', 0)).toBe(0);
+describe('energyUpkeep / energyProduction', () => {
+  test('Fire Age building requires no energy', () => {
+    expect(energyUpkeep('campfire', 5)).toBe(0);
   });
 
   test('Power Plant output scales linearly with owned count', () => {
     expect(energyProduction('powerPlant', 4)).toBe(BUILDINGS.powerPlant.energyProducedPerUnit * 4);
   });
+});
 
-  test('Phase 1 buildings produce no energy', () => {
-    expect(energyProduction('candle', 10)).toBe(0);
+describe('fuelUpkeep / fuelProduction', () => {
+  test('zero owned produces zero fuel', () => {
+    expect(fuelProduction('gasWorks', 0)).toBe(0);
+  });
+
+  test('Gas Works output scales linearly with owned count', () => {
+    expect(fuelProduction('gasWorks', 3)).toBe(BUILDINGS.gasWorks.fuelProducedPerUnit * 3);
+  });
+
+  test('Power Plant fuel upkeep scales linearly with owned count', () => {
+    expect(fuelUpkeep('powerPlant', 2)).toBe(BUILDINGS.powerPlant.fuelConsumedPerUnit * 2);
+  });
+});
+
+describe('materialsProduction', () => {
+  test('zero owned produces zero materials', () => {
+    expect(materialsProduction('nuclearReactor', 0)).toBe(0);
+  });
+
+  test('Nuclear Reactor output scales linearly with owned count', () => {
+    expect(materialsProduction('nuclearReactor', 3)).toBe(BUILDINGS.nuclearReactor.materialsPerUnit * 3);
+  });
+
+  test('buildings without a materials byproduct produce none', () => {
+    expect(materialsProduction('campfire', 10)).toBe(0);
+  });
+});
+
+describe('exoticRequired / exoticProduction', () => {
+  test('zero owned produces zero exotic matter', () => {
+    expect(exoticProduction('fusionReactor', 0)).toBe(0);
+  });
+
+  test('Fusion Reactor output scales linearly with owned count', () => {
+    expect(exoticProduction('fusionReactor', 3)).toBe(BUILDINGS.fusionReactor.exoticProducedPerUnit * 3);
+  });
+
+  test('Fusion Sun exotic reserve requirement scales linearly with owned count', () => {
+    expect(exoticRequired('fusionSun', 2)).toBe(BUILDINGS.fusionSun.exoticRequiredPerUnit * 2);
+  });
+});
+
+describe('maintenanceUpkeep', () => {
+  test('zero owned costs no maintenance', () => {
+    expect(maintenanceUpkeep('orbitalMirror', 0)).toBe(0);
+  });
+
+  test('scales linearly with owned count', () => {
+    expect(maintenanceUpkeep('orbitalMirror', 3)).toBe(BUILDINGS.orbitalMirror.maintenancePerUnit * 3);
+  });
+
+  test('buildings with no maintenance upkeep cost nothing', () => {
+    expect(maintenanceUpkeep('campfire', 100)).toBe(0);
   });
 });

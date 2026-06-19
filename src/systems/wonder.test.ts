@@ -35,7 +35,7 @@ describe('computeWonderYield', () => {
     const bright = {
       ...createInitialState(),
       dayNightClock: 0,
-      buildings: { ...createInitialState().buildings, lighthouse: 100 },
+      buildings: { ...createInitialState().buildings, campfire: 1000 },
     };
     expect(computeWonderYield(bright)).toBeLessThan(computeWonderYield(dim));
   });

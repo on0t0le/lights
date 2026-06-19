@@ -8,20 +8,21 @@ import { mix } from '../render/color';
  * later phases (Planet/Space/Remove Darkness) can keep extending the same
  * knob instead of rewriting styles.
  */
-const MID_GAME_LIGHT_SCALE = 5000; // roughly COMFORT_MAX - same "this is a lot of light" reference point
+const MID_GAME_LIGHT_SCALE = 5000; // "this is a lot of light" reference point, shared loosely with wonder.ts's STAR_VISIBILITY_SCALE
 
 /**
- * Late-game wash references Phase 4/5 light levels (Dyson Swarm, Stellar
- * Mirror) - far beyond MID_GAME_LIGHT_SCALE - so the interface keeps
- * sliding toward "almost white ... buttons blend together" (spec, Late
- * Game) rather than capping out the moment Phase 2 ends.
+ * Late-game wash references Orbital Age+ light levels - far beyond
+ * MID_GAME_LIGHT_SCALE and on the same order as automation.ts's
+ * FULL_LIGHT_SCALE - so the interface keeps sliding toward "almost white
+ * ... buttons blend together" (spec, Late Game) rather than capping out the
+ * moment the city scene ends.
  */
-const LATE_GAME_LIGHT_SCALE = 2_000_000;
+const LATE_GAME_LIGHT_SCALE = 50_000_000;
 
 export function applyTheme(state: GameState, totalLight: number): void {
   const root = document.documentElement;
 
-  if (state.phase < 2) {
+  if (state.phase < 3) {
     root.style.removeProperty('--shadow-strength');
     root.style.removeProperty('--bg-sky-bottom');
     root.classList.remove('phase-city', 'phase-sterile', 'ending-balance');
@@ -44,13 +45,15 @@ export function applyTheme(state: GameState, totalLight: number): void {
 
   const midWash = Math.min(1, totalLight / MID_GAME_LIGHT_SCALE);
   const lateWash = Math.min(1, totalLight / LATE_GAME_LIGHT_SCALE);
-  const wash = state.phase >= 4 ? lateWash : midWash;
+  // Late wash kicks in from Orbital Age (10) onward - Gas Age..Cold Fusion
+  // Age (3-9) are still mid-game in feel even though they're past Lamp Age.
+  const wash = state.phase >= 10 ? lateWash : midWash;
   // Shadows weaken and the sky desaturates toward white as brightness climbs.
   root.style.setProperty('--shadow-strength', (1 - wash).toFixed(2));
   root.style.setProperty('--bg-sky-bottom', mix('#2d1f4a', '#e8e4f0', wash));
 
   // Spec, Late Game: "Almost white interface. Buttons blend together...
-  // Everything feels sterile." Reserve this for Phase 4/5 deep into the
-  // late-game wash, past Ending 1's threshold of "completely white".
-  root.classList.toggle('phase-sterile', state.phase >= 4 && lateWash > 0.85);
+  // Everything feels sterile." Reserve this for Orbital Age onward, deep
+  // into the late-game wash, past Ending 1's threshold of "completely white".
+  root.classList.toggle('phase-sterile', state.phase >= 10 && lateWash > 0.85);
 }

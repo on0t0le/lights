@@ -163,9 +163,9 @@ export function updateUniverse(handle: UniverseHandle, state: GameState, _totalL
     planet.group.setAttribute('transform', `translate(${x.toFixed(1)}, ${y.toFixed(1)})`);
   }
 
-  // Dyson swarm shells around the star (research-gated - see systems/progression.ts -
-  // so they can never appear before the Dyson Swarms research is actually bought).
-  const swarmCount = Math.min(MAX_SWARM_RINGS, state.buildings.dysonSwarm);
+  // Dyson sphere shells around the star (research-gated - see systems/progression.ts -
+  // so they can never appear before Megastructure Engineering is actually bought).
+  const swarmCount = Math.min(MAX_SWARM_RINGS, state.buildings.dysonSphere);
   handle.swarmRings.forEach((ring, i) => {
     ring.setAttribute('opacity', i < swarmCount ? '1' : '0');
   });

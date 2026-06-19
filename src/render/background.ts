@@ -2,6 +2,7 @@ import { rect, linearGradient, radialGradient, circle, path, svgEl } from '../sv
 import { mix } from './color';
 import type { GameState } from '../state';
 import { WIDTH, HEIGHT, HORIZON_Y } from './geometry';
+import { FULL_LIGHT_SCALE } from '../systems/automation';
 
 const STAR_COUNT = 40;
 
@@ -20,14 +21,15 @@ function sunHeight(dayNightClock: number): number {
 
 /**
  * How visible stars are: bright at night, fade out as the sun rises and as
- * ambient light grows. City (Phase 2) light dwarfs Village light, so the
- * same `/ 50` falloff would never let stars fade gradually there - scale
- * the fade distance to the phase so City still reads as "stars gradually
- * disappear" (spec) rather than snapping instantly to invisible.
+ * ambient light grows. The City bucket (Gas Age..Cold Fusion Age, eras 3-9)
+ * runs far brighter than the Village (Fire/Lamp Age), so the same `/ 50`
+ * falloff would never let stars fade gradually there - scale the fade
+ * distance to the bucket so City still reads as "stars gradually disappear"
+ * (spec) rather than snapping instantly to invisible.
  */
 function starVisibility(dayNightClock: number, totalLight: number, phase: number): number {
   const night = Math.max(0, -sunHeight(dayNightClock));
-  const fadeDistance = phase >= 2 ? 2000 : 50;
+  const fadeDistance = phase >= 3 ? 200_000 : 50;
   const lightFade = Math.max(0, 1 - totalLight / fadeDistance);
   return night * lightFade;
 }
@@ -158,19 +160,24 @@ export function mountBackground(svg: SVGSVGElement): BackgroundHandle {
  * or destroyed here - that's the whole point (see main.ts's render loop).
  */
 export function updateBackground(handle: BackgroundHandle, state: GameState, totalLight: number): void {
-  // Phases 3+ (Planet, Space, Remove Darkness): we're off the ground, so a
-  // terrestrial day/night sky with a sun and moon crossing it makes no
-  // sense - they used to render *underneath* the opaque planet/universe
-  // scene anyway, never actually visible while still animating every tick.
-  // Space gets a fixed dark sky plus the same star field, nothing else.
-  if (state.phase >= 3) {
-    handle.skyTopStop.setAttribute('stop-color', '#05030d');
-    handle.skyBottomStop.setAttribute('stop-color', '#0c0a1a');
+  // Orbital Age+ (eras 10-15, Planet/Universe scenes): we're off the
+  // ground, so a terrestrial day/night sky with a sun and moon crossing it
+  // makes no sense - they used to render *underneath* the opaque
+  // planet/universe scene anyway, never actually visible while still
+  // animating every tick. Space gets a fixed dark sky plus the same star
+  // field, nothing else.
+  if (state.phase >= 10) {
+    // Darkness now actively falls as the civilization over-illuminates (see
+    // systems/darkness.ts); as it approaches 0 the sky itself washes bright,
+    // reading as "the universe permanently illuminated" rather than just a
+    // fixed dark backdrop with dimmer stars.
+    handle.skyTopStop.setAttribute('stop-color', mix('#05030d', '#cfd8ff', 1 - state.darkness));
+    handle.skyBottomStop.setAttribute('stop-color', mix('#0c0a1a', '#eef2ff', 1 - state.darkness));
     handle.sunGroup.style.display = 'none';
     handle.moonGroup.style.display = 'none';
     handle.cloudGroup.style.display = 'none';
     handle.starGroup.style.display = '';
-    const visibility = Math.min(1, Math.max(0, 1 - totalLight / 2000) * state.darkness + 0.15);
+    const visibility = Math.min(1, Math.max(0, 1 - totalLight / FULL_LIGHT_SCALE) * state.darkness + 0.15 * state.darkness);
     for (const star of handle.starCircles) {
       star.setAttribute('opacity', visibility.toFixed(2));
     }
@@ -189,7 +196,7 @@ export function updateBackground(handle: BackgroundHandle, state: GameState, tot
   const isDay = height > 0;
   handle.sunGroup.style.display = isDay ? '' : 'none';
   if (isDay) {
-    const bloom = Math.min(1, totalLight / 5000);
+    const bloom = Math.min(1, totalLight / 200_000);
     const glowRadius = 18 + bloom * 30;
     const sunX = state.dayNightClock * WIDTH;
     const sunY = HORIZON_Y - height * 180;
@@ -201,7 +208,10 @@ export function updateBackground(handle: BackgroundHandle, state: GameState, tot
     handle.sunCore.setAttribute('r', String(10 + bloom * 4));
   }
 
-  const visibility = starVisibility(state.dayNightClock, totalLight, state.phase);
+  // Multiplied by darkness (systems/darkness.ts) on top of the local night/
+  // light fade, so over-illuminating the universe dims stars even during a
+  // dark local night - the felt consequence of the dynamic darkness model.
+  const visibility = starVisibility(state.dayNightClock, totalLight, state.phase) * state.darkness;
   handle.starGroup.style.display = visibility > 0.01 ? '' : 'none';
   for (const star of handle.starCircles) {
     star.setAttribute('opacity', visibility.toFixed(2));

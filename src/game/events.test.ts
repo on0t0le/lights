@@ -54,4 +54,24 @@ describe('tickEvents', () => {
     const next = tickEvents(state, () => 1);
     expect(next.activeEvent).toEqual({ id: 'birdMigration', ticksRemaining: 2 });
   });
+
+  test('force-ends a night-only event the moment the clock crosses into day, even with ticks left', () => {
+    // dayNightClock 0 = midnight (night); 0.5 = noon (day) - see daynight.ts.
+    const state = {
+      ...createInitialState(),
+      dayNightClock: 0.5,
+      activeEvent: { id: 'meteorShower' as const, ticksRemaining: 10 },
+    };
+    const next = tickEvents(state, () => 1);
+    expect(next.activeEvent).toBeNull();
+    expect(next.eventCooldownTicks).toBeGreaterThan(0);
+  });
+
+  test('never rolls a night-only event during the day', () => {
+    const state = { ...createInitialState(), dayNightClock: 0.5 }; // noon
+    const next = tickEvents(state, () => 0); // rng=0 always rolls when eligible
+    if (next.activeEvent) {
+      expect(['meteorShower', 'northernLights', 'lunarEclipse']).not.toContain(next.activeEvent.id);
+    }
+  });
 });

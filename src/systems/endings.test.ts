@@ -7,40 +7,34 @@ describe('resolveEnding', () => {
     expect(resolveEnding(createInitialState()).ending).toBeNull();
   });
 
-  test('locks in Infinite Light once darkness and contrast both bottom out', () => {
-    const state = {
-      ...createInitialState(),
-      darkness: 0,
-      resources: { ...createInitialState().resources, contrast: 0 },
-    };
+  // Issue #5/#10: Infinite Light is now a deliberate capstone research
+  // purchase (Black Hole Illumination), not a passive darkness-zero
+  // side-effect - darkness alone bottoming out (e.g. from a stray buff)
+  // should never silently lock in an ending the player didn't choose.
+  test('locks in Infinite Light once Black Hole Illumination is purchased', () => {
+    const state = { ...createInitialState(), research: ['blackHoleIllumination' as const], darkness: 0 };
     expect(resolveEnding(state).ending).toBe('infiniteLight');
   });
 
-  test('does not lock in Infinite Light if only darkness is zero', () => {
-    const state = {
-      ...createInitialState(),
-      darkness: 0,
-      resources: { ...createInitialState().resources, contrast: 0.1 },
-    };
+  test('does not lock in Infinite Light from darkness alone, without the capstone research', () => {
+    const state = { ...createInitialState(), darkness: 0 };
     expect(resolveEnding(state).ending).toBeNull();
   });
 
-  test('locks in Balance once Balanced Universe research is purchased, even with darkness/contrast still nonzero', () => {
+  test('locks in Balance once Balanced Universe research is purchased, even with darkness still nonzero', () => {
     const state = {
       ...createInitialState(),
       research: ['balancedUniverse' as const],
       darkness: 0.6,
-      resources: { ...createInitialState().resources, contrast: 0.3 },
     };
     expect(resolveEnding(state).ending).toBe('balance');
   });
 
-  test('Balance wins over Infinite Light when both conditions are technically met', () => {
+  test('Balance wins over Infinite Light when both capstones are technically owned', () => {
     const state = {
       ...createInitialState(),
-      research: ['balancedUniverse' as const],
+      research: ['balancedUniverse' as const, 'blackHoleIllumination' as const],
       darkness: 0,
-      resources: { ...createInitialState().resources, contrast: 0 },
     };
     expect(resolveEnding(state).ending).toBe('balance');
   });
@@ -55,11 +49,7 @@ describe('resolveEnding', () => {
   });
 
   test('does not mutate the original state', () => {
-    const state = {
-      ...createInitialState(),
-      darkness: 0,
-      resources: { ...createInitialState().resources, contrast: 0 },
-    };
+    const state = { ...createInitialState(), research: ['blackHoleIllumination' as const], darkness: 0 };
     resolveEnding(state);
     expect(state.ending).toBeNull();
   });

@@ -54,11 +54,63 @@ body {
   font-size: 0.95rem;
 }
 
+/* Happiness throttling lumen production (automation.ts's tick()) - surfaced
+   so the player sees why output slowed, not just a falling percentage. */
+.resource-row.low {
+  color: var(--accent-warm);
+}
+
+.resource-note {
+  font-size: 0.75rem;
+  color: var(--accent-warm);
+  visibility: hidden;
+}
+
+.resource-note.visible {
+  visibility: visible;
+}
+
+/* Wonder meter (Balance ending's currency, research.ts's balancedUniverse
+   threshold) - a visible fill bar answers "why do I need wonder". */
+.wonder-meter {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--panel-border);
+  overflow: hidden;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.wonder-meter-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent-warm);
+}
+
+/* Remove-Darkness phase (7) goal readout. */
+.darkness-indicator {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
 .buildings {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
   padding: 1rem;
+}
+
+/* Power balance, shown above the building list so the power -> light
+   relationship (Solar Farm/Power Plant feed the lights that fill the
+   planet, not the other way around) is visible instead of silent. */
+.power-summary {
+  flex-basis: 100%;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.power-summary.deficit {
+  color: var(--accent-warm);
 }
 
 .building-button {
@@ -83,6 +135,7 @@ body {
 }
 
 .building-button .meta {
+  display: block;
   color: var(--text-secondary);
   font-size: 0.8rem;
 }
@@ -95,8 +148,7 @@ body {
 }
 
 .research-panel,
-.event-panel,
-.priority-panel {
+.event-panel {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
@@ -125,6 +177,7 @@ body {
 }
 
 .research-card .meta {
+  display: block;
   color: var(--text-secondary);
   font-size: 0.8rem;
 }
@@ -143,16 +196,9 @@ body {
 }
 
 .event-card .meta {
+  display: block;
   color: var(--text-secondary);
   font-size: 0.8rem;
-}
-
-.priority-slider {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-  min-width: 140px;
 }
 
 /* Late game (Phase 4-5): spec - "Almost white interface. Buttons blend
@@ -204,6 +250,21 @@ body {
   padding: 0.6rem 1.2rem;
   font-size: 1rem;
   cursor: pointer;
+}
+
+/* Small always-available corner control, distinct from the big ending-overlay restart prompt. */
+.manual-restart-button {
+  position: fixed;
+  top: 0.75rem;
+  right: 0.75rem;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.8rem;
+  opacity: 0.7;
+  z-index: 10;
+}
+
+.manual-restart-button:hover {
+  opacity: 1;
 }
 
 .ending-overlay p {

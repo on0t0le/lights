@@ -1,14 +1,13 @@
 import type { GameState } from '../state';
 import { totalLightOutput } from './automation';
-import { nightAmount } from './contrast';
+import { nightAmount } from './daynight';
 import { activeEventEffect } from '../game/events';
-import { priorityMultiplier } from './priorities';
 
 /** Ambient sources scale to roughly the same "felt" magnitude as the event bonuses below. */
 const AMBIENT_WONDER_SCALE = 0.05;
 
 /** Above this much light, stars are fully washed out and contribute no wonder. */
-const STAR_VISIBILITY_SCALE = 5000; // matches happiness.ts's COMFORT_MAX - "this is a lot of light"
+const STAR_VISIBILITY_SCALE = 5000; // "this is a lot of light" reference point
 
 /**
  * How visible the stars are right now: 1 in true darkness, fading to 0 as
@@ -50,7 +49,7 @@ function ambientWonder(state: GameState): number {
  */
 export function computeWonderYield(state: GameState): number {
   const raw = ambientWonder(state) + activeEventEffect(state).wonderBonus;
-  return raw * state.darkness * priorityMultiplier(state, 'wonder');
+  return raw * state.darkness;
 }
 
 /**

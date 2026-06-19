@@ -3,72 +3,102 @@ import { createInitialState } from '../state';
 import {
   availableResearch,
   buyResearch,
+  researchCost,
   researchLumenMultiplier,
   isUnlockedByResearch,
   researchDarknessDelta,
+  hasPreserveResearch,
 } from './research';
 
 describe('availableResearch', () => {
-  test('Candle Making is available from the start', () => {
+  test('Fire Making is available from the start', () => {
     const ids = availableResearch(createInitialState()).map((c) => c.id);
-    expect(ids).toContain('candleMaking');
+    expect(ids).toContain('fireMaking');
   });
 
-  test('Street Electricity is hidden until Candle Making is purchased', () => {
+  test('Oil Extraction is hidden until Fire Making is purchased, and until era 2 is reached', () => {
     const state = createInitialState();
-    expect(availableResearch(state).map((c) => c.id)).not.toContain('streetElectricity');
-    const withPrereq = { ...state, research: ['candleMaking' as const] };
-    expect(availableResearch(withPrereq).map((c) => c.id)).toContain('streetElectricity');
+    expect(availableResearch(state).map((c) => c.id)).not.toContain('oilExtraction');
+    const withPrereq = { ...state, phase: 2, research: ['fireMaking' as const] };
+    expect(availableResearch(withPrereq).map((c) => c.id)).toContain('oilExtraction');
   });
 
   test('already-purchased cards are not offered again', () => {
-    const state = { ...createInitialState(), research: ['candleMaking' as const] };
-    expect(availableResearch(state).map((c) => c.id)).not.toContain('candleMaking');
+    const state = { ...createInitialState(), research: ['fireMaking' as const] };
+    expect(availableResearch(state).map((c) => c.id)).not.toContain('fireMaking');
   });
 
-  test('cards beyond the current phase are never offered', () => {
-    const state = createInitialState(); // phase 1
-    expect(availableResearch(state).map((c) => c.id)).not.toContain('leds'); // phase 2
+  test('cards beyond the current era are never offered', () => {
+    const state = createInitialState(); // era 1
+    expect(availableResearch(state).map((c) => c.id)).not.toContain('oilExtraction'); // era 2
   });
 
-  test('Fusion Power and Artificial Sleep are hidden until Phase 3, then appear once LEDs is purchased', () => {
-    const state = { ...createInitialState(), phase: 3 as const };
-    expect(availableResearch(state).map((c) => c.id)).not.toContain('fusionPower');
-    const withPrereq = { ...state, research: ['candleMaking' as const, 'streetElectricity' as const, 'leds' as const] };
-    expect(availableResearch(withPrereq).map((c) => c.id)).toContain('fusionPower');
-    expect(availableResearch(withPrereq).map((c) => c.id)).toContain('artificialSleep');
-  });
-
-  test('Orbital Mirrors is hidden until Fusion Power is purchased', () => {
-    const state = {
-      ...createInitialState(),
-      phase: 3 as const,
-      research: ['candleMaking' as const, 'streetElectricity' as const, 'leds' as const],
-    };
-    expect(availableResearch(state).map((c) => c.id)).not.toContain('orbitalMirrors');
-    const withPrereq = { ...state, research: [...state.research, 'fusionPower' as const] };
-    expect(availableResearch(withPrereq).map((c) => c.id)).toContain('orbitalMirrors');
+  test('the endgame branch is hidden until era 15 and Universal Computation is purchased', () => {
+    const state = { ...createInitialState(), phase: 15 };
+    expect(availableResearch(state).map((c) => c.id)).not.toContain('eliminateShadows');
+    const withPrereq = { ...state, research: ['universalComputation' as const] };
+    expect(availableResearch(withPrereq).map((c) => c.id)).toContain('eliminateShadows');
   });
 });
 
 describe('buyResearch', () => {
   test('purchases a card when affordable, deducting lumens', () => {
     const state = { ...createInitialState(), resources: { ...createInitialState().resources, lumens: 100 } };
-    const next = buyResearch(state, 'candleMaking');
-    expect(next.research).toContain('candleMaking');
-    expect(next.resources.lumens).toBe(60); // 100 - 40 cost
+    const next = buyResearch(state, 'fireMaking');
+    expect(next.research).toContain('fireMaking');
+    expect(next.resources.lumens).toBe(70); // 100 - 30 cost
   });
 
   test('does nothing when not affordable', () => {
     const state = { ...createInitialState(), resources: { ...createInitialState().resources, lumens: 1 } };
-    const next = buyResearch(state, 'candleMaking');
+    const next = buyResearch(state, 'fireMaking');
     expect(next).toEqual(state);
   });
 
   test('does nothing when not available (prereq missing)', () => {
-    const state = { ...createInitialState(), resources: { ...createInitialState().resources, lumens: 9999 } };
-    const next = buyResearch(state, 'streetElectricity');
+    const state = { ...createInitialState(), resources: { ...createInitialState().resources, lumens: 9999999 }, phase: 2 };
+    const next = buyResearch(state, 'oilExtraction');
     expect(next).toEqual(state);
+  });
+});
+
+// Issue #2: materials discount research cost, so the resource stays useful
+// well past its original era-10+ megastructure-savings role.
+describe('researchCost', () => {
+  test('equals the card cost with no materials', () => {
+    expect(researchCost(createInitialState(), 'fireMaking')).toBe(30);
+  });
+
+  test('is discounted by a log-scaled materials bonus', () => {
+    const state = { ...createInitialState(), resources: { ...createInitialState().resources, materials: 999 } };
+    // 30 / (1 + 0.10 * log10(1 + 999)) = 30 / (1 + 0.10 * 3) = 30 / 1.3
+    expect(researchCost(state, 'fireMaking')).toBeCloseTo(30 / 1.3, 5);
+  });
+
+  test('buyResearch spends the discounted cost, not the raw card cost', () => {
+    const state = {
+      ...createInitialState(),
+      resources: { ...createInitialState().resources, lumens: 100, materials: 999 },
+    };
+    const next = buyResearch(state, 'fireMaking');
+    expect(next.research).toContain('fireMaking');
+    expect(next.resources.lumens).toBeCloseTo(100 - 30 / 1.3, 5);
+  });
+});
+
+describe('hasPreserveResearch', () => {
+  test('false with no research', () => {
+    expect(hasPreserveResearch(createInitialState())).toBe(false);
+  });
+
+  test('true once any Preserve-branch card is purchased', () => {
+    const state = { ...createInitialState(), research: ['darknessPreservation' as const] };
+    expect(hasPreserveResearch(state)).toBe(true);
+  });
+
+  test('false when only Eliminate-branch cards are purchased', () => {
+    const state = { ...createInitialState(), research: ['eliminateShadows' as const] };
+    expect(hasPreserveResearch(state)).toBe(false);
   });
 });
 
@@ -78,39 +108,30 @@ describe('researchLumenMultiplier', () => {
   });
 
   test('multiplies in purchased cards', () => {
-    const state = { ...createInitialState(), research: ['candleMaking' as const] };
+    const state = { ...createInitialState(), research: ['fireMaking' as const] };
     expect(researchLumenMultiplier(state)).toBeCloseTo(1.2);
   });
 
   test('compounds multiple purchased cards', () => {
-    const state = { ...createInitialState(), research: ['candleMaking' as const, 'streetElectricity' as const] };
-    expect(researchLumenMultiplier(state)).toBeCloseTo(1.2 * 1.15);
+    const state = { ...createInitialState(), research: ['fireMaking' as const, 'oilExtraction' as const] };
+    expect(researchLumenMultiplier(state)).toBeCloseTo(1.2 * 1.18);
   });
 });
 
 describe('isUnlockedByResearch', () => {
   test('false when the unlocking card has not been purchased', () => {
-    expect(isUnlockedByResearch(createInitialState(), 'streetlamp')).toBe(false);
+    expect(isUnlockedByResearch(createInitialState(), 'torch')).toBe(false);
   });
 
-  test('true once Street Electricity is purchased', () => {
-    const state = { ...createInitialState(), research: ['streetElectricity' as const] };
-    expect(isUnlockedByResearch(state, 'streetlamp')).toBe(true);
+  test('true once Fire Making is purchased', () => {
+    const state = { ...createInitialState(), research: ['fireMaking' as const] };
+    expect(isUnlockedByResearch(state, 'torch')).toBe(true);
   });
 
-  test('Fusion Power unlocks Fusion Reactor; Orbital Mirrors unlocks Orbital Mirror', () => {
-    expect(isUnlockedByResearch({ ...createInitialState(), research: ['fusionPower' as const] }, 'fusionReactor')).toBe(
-      true
-    );
-    expect(
-      isUnlockedByResearch({ ...createInitialState(), research: ['orbitalMirrors' as const] }, 'orbitalMirror')
-    ).toBe(true);
-  });
-
-  test('Dyson Swarms unlocks both White Dwarf Reactor and Stellar Mirror', () => {
-    const state = { ...createInitialState(), research: ['dysonSwarms' as const] };
-    expect(isUnlockedByResearch(state, 'whiteDwarfReactor')).toBe(true);
-    expect(isUnlockedByResearch(state, 'stellarMirror')).toBe(true);
+  test('Orbital Construction unlocks both Orbital Mirror and Space Elevator', () => {
+    const state = { ...createInitialState(), research: ['orbitalConstruction' as const] };
+    expect(isUnlockedByResearch(state, 'orbitalMirror')).toBe(true);
+    expect(isUnlockedByResearch(state, 'spaceElevator')).toBe(true);
   });
 });
 
