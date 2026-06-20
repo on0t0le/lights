@@ -41,6 +41,52 @@ function renderFuelSummary(state: GameState): HTMLElement {
 }
 
 /**
+ * Resource/power gating for a building's buy button. Recomputed every tick
+ * (not just on structural rebuild) since lumens/energy/fuel/exotic ratios
+ * all drift tick to tick without changing which buildings are unlocked.
+ */
+export function buildingButtonStatus(
+  state: GameState,
+  id: BuildingId
+): { disabled: boolean; statusText: string; unmet: boolean } {
+  const def = BUILDINGS[id];
+  const owned = state.buildings[id];
+  const cost = buildingCost(id, owned);
+  const materialCost = buildingMaterialCost(id);
+  const powerable = canPowerBuilding(state, id);
+  const { fuelRatio } = resolveFuel(state);
+  const { energyRatio } = resolveEnergy(state, fuelRatio);
+  const { exoticRatio } = resolveExotic(state);
+  const affordable = canAfford(state, 'lumens', cost) && canAfford(state, 'materials', materialCost);
+  const needsMaterials = materialCost > 0 && !canAfford(state, 'materials', materialCost);
+  const needsLumens = !canAfford(state, 'lumens', cost);
+
+  let statusText = '';
+  let unmet = false;
+  if (!powerable) {
+    statusText = 'Needs power';
+    unmet = true;
+  } else if (owned > 0 && def.energyConsumedPerUnit > 0 && energyRatio < 1) {
+    statusText = `Dimmed — ${Math.round(energyRatio * 100)}% power`;
+    unmet = true;
+  } else if (owned > 0 && def.fuelConsumedPerUnit > 0 && fuelRatio < 1) {
+    statusText = fuelRatio <= 0 ? 'Idle — no fuel' : `Dimmed — ${Math.round(fuelRatio * 100)}% fuel`;
+    unmet = true;
+  } else if (owned > 0 && def.exoticRequiredPerUnit > 0 && exoticRatio < 1) {
+    statusText = `Dimmed — ${Math.round(exoticRatio * 100)}% exotic reserve`;
+    unmet = true;
+  } else if (needsMaterials) {
+    statusText = 'Needs materials';
+    unmet = true;
+  } else if (needsLumens) {
+    statusText = 'Needs lumens';
+    unmet = true;
+  }
+
+  return { disabled: !affordable || !powerable, statusText, unmet };
+}
+
+/**
  * Renders one buy-button per unlocked building, across all phases up to the
  * player's current phase. `onBuy` is called with the building id when
  * clicked; the caller owns the state update + re-render.
@@ -53,9 +99,6 @@ export function renderBuildingButtons(
   container.innerHTML = '';
   container.className = 'buildings';
 
-  const { fuelRatio } = resolveFuel(state);
-  const { energyRatio } = resolveEnergy(state, fuelRatio);
-  const { exoticRatio } = resolveExotic(state);
   if (state.phase >= 2) {
     container.appendChild(renderPowerSummary(state));
   }
@@ -72,12 +115,11 @@ export function renderBuildingButtons(
     const owned = state.buildings[id];
     const cost = buildingCost(id, owned);
     const materialCost = buildingMaterialCost(id);
-    const powerable = canPowerBuilding(state, id);
-    const affordable = canAfford(state, 'lumens', cost) && canAfford(state, 'materials', materialCost);
+    const { disabled, statusText, unmet } = buildingButtonStatus(state, id);
 
     const button = document.createElement('button');
     button.className = 'building-button';
-    button.disabled = !affordable || !powerable;
+    button.disabled = disabled;
 
     const name = document.createElement('span');
     name.className = 'name';
@@ -132,30 +174,9 @@ export function renderBuildingButtons(
     // a tile's resource-shortfall phrase appearing/disappearing each tick
     // never resizes the tile or reflows the grid. `unmet` (issue #10) covers
     // every "you can't run this yet" case — not just the hard-disabled
-    // unaffordable one — and names which resource is short.
-    const needsLumens = !canAfford(state, 'lumens', cost);
-    const needsMaterials = materialCost > 0 && !canAfford(state, 'materials', materialCost);
-    let statusText = '';
-    let unmet = false;
-    if (!powerable) {
-      statusText = 'Needs power';
-      unmet = true;
-    } else if (owned > 0 && def.energyConsumedPerUnit > 0 && energyRatio < 1) {
-      statusText = `Dimmed — ${Math.round(energyRatio * 100)}% power`;
-      unmet = true;
-    } else if (owned > 0 && def.fuelConsumedPerUnit > 0 && fuelRatio < 1) {
-      statusText = fuelRatio <= 0 ? 'Idle — no fuel' : `Dimmed — ${Math.round(fuelRatio * 100)}% fuel`;
-      unmet = true;
-    } else if (owned > 0 && def.exoticRequiredPerUnit > 0 && exoticRatio < 1) {
-      statusText = `Dimmed — ${Math.round(exoticRatio * 100)}% exotic reserve`;
-      unmet = true;
-    } else if (needsMaterials) {
-      statusText = 'Needs materials';
-      unmet = true;
-    } else if (needsLumens) {
-      statusText = 'Needs lumens';
-      unmet = true;
-    }
+    // unaffordable one — and names which resource is short. Patched every
+    // tick by patchBuildingButtons (issue #16) since resource ratios drift
+    // tick to tick without a structural rebuild.
     const status = document.createElement('span');
     status.className = 'status';
     status.textContent = statusText;

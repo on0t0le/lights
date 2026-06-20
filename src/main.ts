@@ -1,11 +1,11 @@
 import './styles.css';
 import { createInitialState, FINAL_ERA, type GameState, type ResourceId, type BuildingId } from './state';
 import { loadFromLocalStorage, saveToLocalStorage, clearLocalStorage } from './game/save';
-import { tick, totalLightOutput, canPowerBuilding, DEFAULT_DAY_LENGTH } from './systems/automation';
+import { tick, totalLightOutput, DEFAULT_DAY_LENGTH } from './systems/automation';
 import { applyHappiness } from './systems/happiness';
 import { applyDarkness } from './systems/darkness';
 import { resolveEnding } from './systems/endings';
-import { buyBuilding, BUILDINGS, buildingCost } from './game/buildings';
+import { buyBuilding, BUILDINGS } from './game/buildings';
 import { availableResearch, buyResearch, researchCost, RESEARCH } from './game/research';
 import { tickEvents, EVENTS } from './game/events';
 import { isBuildingVisible } from './systems/progression';
@@ -15,11 +15,10 @@ import { mountPlanet, updatePlanet } from './render/planet';
 import { mountUniverse, updateUniverse } from './render/universe';
 import { buildEndingScene } from './render/endingScene';
 import { applyTheme } from './ui/theme';
-import { renderBuildingButtons } from './ui/buttons';
+import { renderBuildingButtons, buildingButtonStatus } from './ui/buttons';
 import { renderResearchCard, renderEventCard } from './ui/cards';
 import { canAfford } from './game/resources';
 import { formatNumber } from './ui/format';
-import { buildingMaterialCost } from './game/buildings';
 
 const TICKS_PER_SECOND = 5;
 const SECONDS_PER_TICK = 1 / TICKS_PER_SECOND;
@@ -214,7 +213,7 @@ function patchResourcePanel(state: GameState): void {
 // affordability (which flips every tick as lumens accumulate) is patched by
 // toggling `disabled` on the cached buttons instead of rebuilding them. ---
 
-let buildingButtonRefs: { id: BuildingId; button: HTMLButtonElement; cost: number }[] = [];
+let buildingButtonRefs: { id: BuildingId; button: HTMLButtonElement; status: HTMLElement }[] = [];
 
 function rebuildBuildingButtons(snapshot: GameState): void {
   renderBuildingButtons(buildingButtons, snapshot, (id) => setState(buyBuilding(state, id)));
@@ -229,17 +228,21 @@ function rebuildBuildingButtons(snapshot: GameState): void {
     .map((id, i) => ({
       id,
       button: buttons[i]!,
-      cost: buildingCost(id, snapshot.buildings[id]),
+      status: buttons[i]!.querySelector<HTMLElement>('.status')!,
     }));
 }
 
 function patchBuildingButtons(state: GameState): void {
+  // issue #16: status text and the `unmet`/dimmed look used to be baked in
+  // only at structural rebuild time, so a building stuck reading "Needs
+  // lumens" (and looking disabled) even after lumens/power/fuel/exotic
+  // ratios caught up on a later tick. Recompute alongside `disabled` so the
+  // label never lies about the button's actual clickability.
   for (const ref of buildingButtonRefs) {
-    const materialCost = buildingMaterialCost(ref.id);
-    ref.button.disabled =
-      !canAfford(state, 'lumens', ref.cost) ||
-      !canAfford(state, 'materials', materialCost) ||
-      !canPowerBuilding(state, ref.id);
+    const { disabled, statusText, unmet } = buildingButtonStatus(state, ref.id);
+    ref.button.disabled = disabled;
+    ref.status.textContent = statusText;
+    ref.button.classList.toggle('unmet', unmet);
   }
 }
 
