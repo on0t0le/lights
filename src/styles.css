@@ -309,3 +309,151 @@ body {
 .ending-overlay.ending-balance p {
   color: var(--accent-warm);
 }
+
+/* --- Ending mini-scenes (endingScene.ts): a one-shot animated SVG behind
+   the text/button. The overlay only mounts on game-end, so these play
+   once on mount rather than running through the live render loop. --- */
+.ending-scene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.ending-message,
+.ending-restart {
+  position: relative;
+  z-index: 1;
+}
+
+/* infiniteLight: stars wink out as a blinding white bloom swallows the
+   sky - "the numbers grow forever, the stars are gone" made literal. */
+.ending-stars-wink circle {
+  animation: ending-star-wink-out 0.5s ease-in forwards;
+  animation-delay: calc(var(--star-i) * 0.025s);
+}
+
+.ending-bloom {
+  transform-origin: center;
+  transform-box: fill-box;
+  transform: scale(0);
+  opacity: 0;
+  animation: ending-bloom-grow 2.2s cubic-bezier(0.4, 0, 0.2, 1) 0.8s forwards;
+}
+
+.ending-overlay.ending-infiniteLight .ending-message,
+.ending-overlay.ending-infiniteLight .ending-restart {
+  opacity: 0;
+  animation: ending-fade-in 0.8s ease-out 2.6s forwards;
+}
+
+/* balance: the same stars stay and twinkle, the moon breathes, and the
+   lamp only shines because it casts a shadow - "things shine because
+   something else does not" made literal. */
+.ending-stars-twinkle circle {
+  animation: ending-star-twinkle 2.4s ease-in-out infinite;
+  animation-delay: calc(var(--star-i) * 0.11s);
+}
+
+.ending-moon {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: ending-moon-breathe 4s ease-in-out infinite;
+}
+
+.ending-lamp {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: ending-moon-breathe 3s ease-in-out infinite;
+}
+
+.ending-shadow {
+  opacity: 0.7;
+}
+
+.ending-overlay.ending-balance .ending-message,
+.ending-overlay.ending-balance .ending-restart {
+  opacity: 0;
+  animation: ending-fade-in 1s ease-out 1.2s forwards;
+}
+
+@keyframes ending-star-wink-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes ending-bloom-grow {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes ending-star-twinkle {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes ending-moon-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+@keyframes ending-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Snap straight to each ending's resolved state - no bloom sweep, no
+   twinkle loop - while still showing the same final picture. */
+@media (prefers-reduced-motion: reduce) {
+  .ending-stars-wink circle {
+    animation: none;
+    opacity: 0;
+  }
+  .ending-bloom {
+    animation: none;
+    transform: scale(1);
+    opacity: 1;
+  }
+  .ending-stars-twinkle circle {
+    animation: none;
+    opacity: 0.7;
+  }
+  .ending-moon,
+  .ending-lamp {
+    animation: none;
+  }
+  .ending-overlay .ending-message,
+  .ending-overlay .ending-restart {
+    animation: none;
+    opacity: 1;
+  }
+}

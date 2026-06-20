@@ -13,6 +13,7 @@ import { mountBackground, updateBackground } from './render/background';
 import { mountSettlement, updateSettlement } from './render/settlement';
 import { mountPlanet, updatePlanet } from './render/planet';
 import { mountUniverse, updateUniverse } from './render/universe';
+import { buildEndingScene } from './render/endingScene';
 import { applyTheme } from './ui/theme';
 import { renderBuildingButtons } from './ui/buttons';
 import { renderResearchCard, renderEventCard } from './ui/cards';
@@ -288,11 +289,13 @@ function rebuildEndingOverlay(ending: GameState['ending']): void {
     return;
   }
   endingOverlay.classList.add('visible', `ending-${ending}`);
+  endingOverlay.appendChild(buildEndingScene(ending));
   const message = document.createElement('p');
+  message.className = 'ending-message';
   message.textContent = ENDING_MESSAGES[ending];
   endingOverlay.appendChild(message);
   const restartButton = document.createElement('button');
-  restartButton.className = 'restart-button';
+  restartButton.className = 'restart-button ending-restart';
   restartButton.textContent = 'Restart';
   restartButton.addEventListener('click', () => {
     // A reload would trigger the beforeunload autosave handler below, which

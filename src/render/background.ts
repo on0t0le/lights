@@ -7,7 +7,8 @@ import { FULL_LIGHT_SCALE } from '../systems/automation';
 const STAR_COUNT = 40;
 
 // Deterministic pseudo-random star positions so the sky doesn't reshuffle every render.
-const STAR_SEEDS = Array.from({ length: STAR_COUNT }, (_, i) => {
+// Exported so the ending scene (endingScene.ts) can reuse the same star field.
+export const STAR_SEEDS = Array.from({ length: STAR_COUNT }, (_, i) => {
   const x = (i * 197) % WIDTH;
   const y = (i * 53) % (HEIGHT * 0.6);
   const r = 0.5 + ((i * 31) % 10) / 10;
