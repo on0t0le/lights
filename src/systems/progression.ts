@@ -49,14 +49,19 @@ const ERA_RESEARCH: Record<number, ResearchId> = {
 };
 
 /**
- * Light sources are buyable as soon as their era is reached (no count
- * prerequisite); secondary buildings are research-gated by that era's
- * progression card, so the building (and any visual it unlocks) can never
- * appear before the research does.
+ * Pre-industrial light sources (Fire Age's Campfire, Lamp Age's Candle) are
+ * buyable as soon as their era is reached — no tech needed to light a fire
+ * or a candle, and Campfire is the game's bootstrap building. From the Gas
+ * Age (era 3) on, a light source requires real technology (gas production,
+ * electricity, etc.), so its era's progression card must be researched
+ * first — reported gap: Gas Lamps were buyable before Gas Distribution was
+ * researched, which makes no sense. Secondary buildings are always
+ * research-gated by that era's card, so the building (and any visual it
+ * unlocks) can never appear before the research does.
  */
 const UNLOCK_REQUIREMENT: Record<BuildingId, null | 'researchOnly'> = ERAS.reduce(
   (acc, era) => {
-    acc[era.lightSource] = null;
+    acc[era.lightSource] = era.id <= 2 ? null : 'researchOnly';
     acc[SECONDARY_BUILDING[era.id]!] = 'researchOnly';
     return acc;
   },

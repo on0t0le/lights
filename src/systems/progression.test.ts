@@ -3,8 +3,22 @@ import { isBuildingUnlocked, isBuildingVisible, currentPhase, advancePhase } fro
 import { createInitialState, type ResourceId } from '../state';
 
 describe('isBuildingUnlocked', () => {
-  test('a light source is buyable as soon as its era is reached, no research needed', () => {
+  test('a pre-industrial light source is buyable as soon as its era is reached, no research needed', () => {
     expect(isBuildingUnlocked(createInitialState(), 'campfire')).toBe(true);
+  });
+
+  // Reported gap: Gas Lamp (and every later light source) was buyable the
+  // instant its era was reached, before the era's research was bought -
+  // nonsensical (you can't build gas lamps without developed gas
+  // production). Era 3+ light sources now require their era's research card,
+  // same as their secondary buildings already did.
+  test('an industrial-era (3+) light source stays locked without its era research card', () => {
+    expect(isBuildingUnlocked({ ...createInitialState(), phase: 3 }, 'gasLamp')).toBe(false);
+  });
+
+  test('an industrial-era (3+) light source unlocks once its era research card is bought', () => {
+    const state = { ...createInitialState(), phase: 3, research: ['gasDistribution' as const] };
+    expect(isBuildingUnlocked(state, 'gasLamp')).toBe(true);
   });
 
   test('a secondary building stays locked without its era research card', () => {
@@ -60,8 +74,13 @@ describe('isBuildingUnlocked', () => {
 // eras behind; secondaries never hide (they're the supply chain, not a
 // cosmetic light pick).
 describe('isBuildingVisible', () => {
-  test('the current era light source is visible', () => {
-    expect(isBuildingVisible({ ...createInitialState(), phase: 3 }, 'gasLamp')).toBe(true);
+  test('the current era light source is hidden until its era research is bought', () => {
+    expect(isBuildingVisible({ ...createInitialState(), phase: 3 }, 'gasLamp')).toBe(false);
+  });
+
+  test('the current era light source is visible once its era research is bought', () => {
+    const state = { ...createInitialState(), phase: 3, research: ['gasDistribution' as const] };
+    expect(isBuildingVisible(state, 'gasLamp')).toBe(true);
   });
 
   test('the previous era light source is still visible (one era lag is fine)', () => {

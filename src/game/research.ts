@@ -71,7 +71,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     requires: ['oilExtraction'],
     phase: 3,
     lumenMultiplier: 1.2,
-    unlocks: ['gasWorks'],
+    unlocks: ['gasWorks', 'gasLamp'],
     description: 'Pipe town gas to every lamp - unlocks Gas Works, which feeds your Gas Lamps fuel.',
   },
   electricLighting: {
@@ -81,7 +81,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     requires: ['gasDistribution'],
     phase: 4,
     lumenMultiplier: 1.25,
-    unlocks: ['powerPlant'],
+    unlocks: ['powerPlant', 'incandescentBulb'],
     description: 'Harness electricity - unlocks the Power Plant, the first energy source for electric lights.',
   },
   highVoltageTransmission: {
@@ -91,7 +91,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     requires: ['electricLighting'],
     phase: 5,
     lumenMultiplier: 1.3,
-    unlocks: ['transformerStation'],
+    unlocks: ['transformerStation', 'arcLamp'],
     description: 'Move power over long distances with minimal loss - unlocks the Transformer Station.',
   },
   semiconductorPhysics: {
@@ -101,7 +101,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     requires: ['highVoltageTransmission'],
     phase: 6,
     lumenMultiplier: 1.35,
-    unlocks: ['chipFactory'],
+    unlocks: ['chipFactory', 'ledLamp'],
     description: 'Mass-produce semiconductors - unlocks the Chip Factory, which builds materials for everything that follows.',
   },
   nuclearEngineering: {
@@ -111,7 +111,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     requires: ['semiconductorPhysics'],
     phase: 7,
     lumenMultiplier: 1.4,
-    unlocks: ['nuclearReactor'],
+    unlocks: ['nuclearReactor', 'nuclearLightGrid'],
     description: 'Split the atom for power - unlocks the Nuclear Reactor, a massive energy source for the grid.',
   },
   fusionContainment: {
@@ -121,7 +121,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     requires: ['nuclearEngineering'],
     phase: 8,
     lumenMultiplier: 1.4,
-    unlocks: ['fusionReactor'],
+    unlocks: ['fusionReactor', 'fusionSun'],
     description: 'Contain a sustained fusion reaction - unlocks the Fusion Reactor.',
   },
   coldFusionTheory: {
@@ -131,7 +131,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     requires: ['fusionContainment'],
     phase: 9,
     lumenMultiplier: 1.3,
-    unlocks: ['compactFusionFactory'],
+    unlocks: ['compactFusionFactory', 'planetaryLightGrid'],
     description: 'Shrink fusion down to factory scale - unlocks the Compact Fusion Factory.',
   },
   // Orbital Construction unlocks both Orbital Age buildings, but Orbital
@@ -155,7 +155,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     requires: ['orbitalConstruction'],
     phase: 11,
     lumenMultiplier: 1.4,
-    unlocks: ['asteroidMining'],
+    unlocks: ['asteroidMining', 'starReflector'],
     description: 'Engineer at stellar scale - unlocks Asteroid Mining for raw materials from space.',
   },
   megastructureEngineering: {
@@ -165,7 +165,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     requires: ['stellarEngineering'],
     phase: 12,
     lumenMultiplier: 1.4,
-    unlocks: ['swarmFabricator'],
+    unlocks: ['swarmFabricator', 'dysonSphere'],
     description: 'Build structures the size of orbits - unlocks the Swarm Fabricator, seed of the Dyson Sphere.',
   },
   interstellarLogistics: {
@@ -175,7 +175,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     requires: ['megastructureEngineering'],
     phase: 13,
     lumenMultiplier: 1.3,
-    unlocks: ['stellarConstructor'],
+    unlocks: ['stellarConstructor', 'artificialStar'],
     description: 'Move materials and energy between star systems - unlocks the Stellar Constructor.',
   },
   blackHolePhysics: {
@@ -185,7 +185,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     requires: ['interstellarLogistics'],
     phase: 14,
     lumenMultiplier: 1.3,
-    unlocks: ['blackHoleHarvester'],
+    unlocks: ['blackHoleHarvester', 'galaxyNetwork'],
     description: 'Tap a black hole for power - unlocks the Black Hole Harvester.',
   },
   universalComputation: {
@@ -195,7 +195,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     requires: ['blackHolePhysics'],
     phase: 15,
     lumenMultiplier: 1.2,
-    unlocks: ['realityFoundry'],
+    unlocks: ['realityFoundry', 'cosmicBeacon'],
     description: 'Compute reality itself into being light - unlocks the Reality Foundry.',
   },
   artificialSleep: {

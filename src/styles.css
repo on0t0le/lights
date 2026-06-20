@@ -47,11 +47,21 @@ body {
   box-shadow: 0 2px calc(6px * var(--shadow-strength)) rgba(0, 0, 0, 0.4);
 }
 
+/* Label/value must never wrap - on a narrow window flex items shrink by
+   default and the text inside wraps onto two lines (label on one, value
+   pushed below it). flex-shrink:0 + white-space:nowrap keeps each row a
+   single line regardless of window width; the row itself can still scroll
+   horizontally in the rare case the panel is narrower than the content. */
 .resource-row {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+}
+
+.resource-row > span {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 /* Happiness throttling lumen production (automation.ts's tick()) - surfaced
@@ -82,7 +92,7 @@ body {
    status line (.status below) appeared and disappeared per tick. */
 .buildings {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   gap: 0.75rem;
   padding: 1rem;
 }
@@ -160,7 +170,7 @@ body {
 .research-panel,
 .event-panel {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   gap: 0.75rem;
   padding: 1rem;
 }
