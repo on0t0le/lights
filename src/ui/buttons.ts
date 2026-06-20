@@ -1,6 +1,6 @@
 import type { BuildingId, GameState } from '../state';
 import { BUILDINGS, buildingCost, buildingMaterialCost } from '../game/buildings';
-import { isBuildingUnlocked } from '../systems/progression';
+import { isBuildingVisible } from '../systems/progression';
 import { canAfford } from '../game/resources';
 import { canPowerBuilding, resolveEnergy, resolveFuel, resolveExotic } from '../systems/automation';
 import { formatNumber } from './format';
@@ -26,6 +26,21 @@ function renderPowerSummary(state: GameState): HTMLElement {
 }
 
 /**
+ * Renders the current fuel balance (Gas Age on) next to the power summary,
+ * so a player adding Power Plants can see fuel draw outpacing Gas Works
+ * production *before* it becomes an oscillating brownout (issue #11) -
+ * instead of just discovering it via dimmed lights.
+ */
+function renderFuelSummary(state: GameState): HTMLElement {
+  const { produced, consumed, fuelRatio } = resolveFuel(state);
+  const summary = document.createElement('div');
+  summary.className = 'power-summary fuel-summary';
+  summary.classList.toggle('deficit', fuelRatio < 1);
+  summary.textContent = `Fuel: ${produced.toFixed(0)} produced · ${consumed.toFixed(0)} consumed · ${formatNumber(state.resources.fuel)} stockpile`;
+  return summary;
+}
+
+/**
  * Renders one buy-button per unlocked building, across all phases up to the
  * player's current phase. `onBuy` is called with the building id when
  * clicked; the caller owns the state update + re-render.
@@ -38,15 +53,18 @@ export function renderBuildingButtons(
   container.innerHTML = '';
   container.className = 'buildings';
 
-  const { energyRatio } = resolveEnergy(state);
-  const { active: fuelActive } = resolveFuel(state);
+  const { fuelRatio } = resolveFuel(state);
+  const { energyRatio } = resolveEnergy(state, fuelRatio);
   const { exoticRatio } = resolveExotic(state);
   if (state.phase >= 2) {
     container.appendChild(renderPowerSummary(state));
   }
+  if (state.phase >= 3 && !state.hiddenResources.includes('fuel')) {
+    container.appendChild(renderFuelSummary(state));
+  }
 
   for (const id of Object.keys(BUILDINGS) as BuildingId[]) {
-    if (!isBuildingUnlocked(state, id)) {
+    if (!isBuildingVisible(state, id)) {
       continue;
     }
 
@@ -79,7 +97,7 @@ export function renderBuildingButtons(
     meta.className = 'meta';
     const parts: string[] = [];
     if (def.lumensPerUnit > 0) {
-      parts.push(`+${def.lumensPerUnit}/tick`);
+      parts.push(`+${def.lumensPerUnit} lumens/tick`);
     }
     if (def.energyProducedPerUnit > 0) {
       parts.push(`+${def.energyProducedPerUnit} energy/tick`);
@@ -108,23 +126,46 @@ export function renderBuildingButtons(
     if (def.happinessPerUnit !== 0) {
       parts.push(`Happiness ${signed(def.happinessPerUnit * 100, 1)}%`);
     }
-    if (!powerable) {
-      parts.push('Needs power');
-    } else if (owned > 0 && def.energyConsumedPerUnit > 0 && energyRatio < 1) {
-      parts.push(`Dimmed — ${Math.round(energyRatio * 100)}% power`);
-    } else if (owned > 0 && def.fuelConsumedPerUnit > 0 && !fuelActive) {
-      parts.push('Idle — no fuel');
-    } else if (owned > 0 && def.exoticRequiredPerUnit > 0 && exoticRatio < 1) {
-      parts.push(`Dimmed — ${Math.round(exoticRatio * 100)}% exotic reserve`);
-    } else if (materialCost > 0 && !canAfford(state, 'materials', materialCost)) {
-      parts.push('Needs materials');
-    }
     meta.textContent = parts.join(' · ');
+
+    // Reserved status line (issue #8): always appended, even when empty, so
+    // a tile's resource-shortfall phrase appearing/disappearing each tick
+    // never resizes the tile or reflows the grid. `unmet` (issue #10) covers
+    // every "you can't run this yet" case — not just the hard-disabled
+    // unaffordable one — and names which resource is short.
+    const needsLumens = !canAfford(state, 'lumens', cost);
+    const needsMaterials = materialCost > 0 && !canAfford(state, 'materials', materialCost);
+    let statusText = '';
+    let unmet = false;
+    if (!powerable) {
+      statusText = 'Needs power';
+      unmet = true;
+    } else if (owned > 0 && def.energyConsumedPerUnit > 0 && energyRatio < 1) {
+      statusText = `Dimmed — ${Math.round(energyRatio * 100)}% power`;
+      unmet = true;
+    } else if (owned > 0 && def.fuelConsumedPerUnit > 0 && fuelRatio < 1) {
+      statusText = fuelRatio <= 0 ? 'Idle — no fuel' : `Dimmed — ${Math.round(fuelRatio * 100)}% fuel`;
+      unmet = true;
+    } else if (owned > 0 && def.exoticRequiredPerUnit > 0 && exoticRatio < 1) {
+      statusText = `Dimmed — ${Math.round(exoticRatio * 100)}% exotic reserve`;
+      unmet = true;
+    } else if (needsMaterials) {
+      statusText = 'Needs materials';
+      unmet = true;
+    } else if (needsLumens) {
+      statusText = 'Needs lumens';
+      unmet = true;
+    }
+    const status = document.createElement('span');
+    status.className = 'status';
+    status.textContent = statusText;
+    button.classList.toggle('unmet', unmet);
 
     button.append(name, costLine);
     if (parts.length > 0) {
       button.append(meta);
     }
+    button.append(status);
     button.addEventListener('click', () => onBuy(id));
     container.appendChild(button);
   }

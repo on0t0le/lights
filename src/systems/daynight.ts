@@ -1,7 +1,6 @@
 /**
  * How dark it currently is, from the day/night clock alone: 0 at noon, 1 at
- * midnight. Shared by events.ts (night-only event gating) and wonder.ts
- * (moonlight contribution).
+ * midnight. Used by events.ts for night-only event gating.
  */
 export function nightAmount(dayNightClock: number): number {
   // Mirrors render/background.ts's sunHeight: 0 = midnight, 0.5 = noon.

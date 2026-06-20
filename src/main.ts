@@ -3,16 +3,14 @@ import { createInitialState, FINAL_ERA, type GameState, type ResourceId, type Bu
 import { loadFromLocalStorage, saveToLocalStorage, clearLocalStorage } from './game/save';
 import { tick, totalLightOutput, canPowerBuilding, DEFAULT_DAY_LENGTH } from './systems/automation';
 import { applyHappiness } from './systems/happiness';
-import { applyWonder } from './systems/wonder';
 import { applyDarkness } from './systems/darkness';
 import { resolveEnding } from './systems/endings';
 import { buyBuilding, BUILDINGS, buildingCost } from './game/buildings';
 import { availableResearch, buyResearch, researchCost, RESEARCH } from './game/research';
 import { tickEvents, EVENTS } from './game/events';
-import { isBuildingUnlocked } from './systems/progression';
+import { isBuildingVisible } from './systems/progression';
 import { mountBackground, updateBackground } from './render/background';
-import { mountVillage, updateVillage } from './render/village';
-import { mountCity, updateCity } from './render/city';
+import { mountSettlement, updateSettlement } from './render/settlement';
 import { mountPlanet, updatePlanet } from './render/planet';
 import { mountUniverse, updateUniverse } from './render/universe';
 import { applyTheme } from './ui/theme';
@@ -33,7 +31,6 @@ const RESOURCE_LABELS: Record<ResourceId, string> = {
   materials: 'Materials',
   exotic: 'Exotic Matter',
   happiness: 'Happiness',
-  wonder: 'Wonder',
 };
 
 let state: GameState = loadFromLocalStorage() ?? createInitialState();
@@ -80,57 +77,58 @@ app.appendChild(endingOverlay);
 function setState(next: GameState): void {
   state = next;
   dirty = true;
+  // A restart's fresh state should read as dark immediately, not ease down
+  // from whatever brightness the previous run ended at.
+  if (next.tick === 0) {
+    displayLight = null;
+  }
 }
 
 // --- Scene: background is mounted once and patched every tick; the
-// phase-specific scene (village/city/planet/universe) is only torn down and
+// phase-specific scene (settlement/planet/universe) is only torn down and
 // remounted when the player actually crosses a phase boundary, not every
 // tick. This is the fix for the "laggy/unplayable" full-DOM-rebuild bug. ---
 
 const backgroundHandle = mountBackground(scene);
 
-type SceneBucket = 1 | 2 | 3 | 4;
+// Fire Age..Cold Fusion Age (1-9) each get their own settlement look — one
+// remount per era, not per tick, so this still respects the perf fix above
+// (mountSettlement is parametric on phase: huts -> houses -> skyline).
+// Orbital Age/Stellar Age (10-11) share the globe; Dyson Age on (12-15)
+// share the universe renderer.
+const TERRESTRIAL_STAGE = 0;
+const PLANET_STAGE = -1;
+const UNIVERSE_STAGE = -2;
 
-// Fire Age/Lamp Age (1-2, Camp/Hamlet) get the village scene; Gas Age
-// through Cold Fusion Age (3-9, Village..Planet City) share the terrestrial
-// city renderer (just more towers worth of light, not a new scene); Orbital
-// Age/Stellar Age (10-11, Orbital/Stellar Civilization) get the globe; Dyson
-// Age on (12-15, Dyson Civilization..Cosmic Civilization) share the universe
-// renderer.
-function sceneBucket(phase: number): SceneBucket {
-  if (phase >= 12) return 4;
-  if (phase >= 10) return 3;
-  if (phase >= 3) return 2;
-  return 1;
+function sceneStage(phase: number): number {
+  if (phase >= 12) return UNIVERSE_STAGE;
+  if (phase >= 10) return PLANET_STAGE;
+  return TERRESTRIAL_STAGE + phase; // 1-9, each its own stage
 }
 
-let mountedBucket: SceneBucket | null = null;
+let mountedStage: number | null = null;
 let sceneRoot: SVGGElement | null = null;
 let updateScene: (state: GameState, totalLight: number) => void = () => {};
 
 function ensureSceneMounted(phase: number): void {
-  const bucket = sceneBucket(phase);
-  if (bucket === mountedBucket) {
+  const stage = sceneStage(phase);
+  if (stage === mountedStage) {
     return;
   }
   sceneRoot?.remove();
-  mountedBucket = bucket;
-  if (bucket === 1) {
-    const handle = mountVillage(scene);
-    sceneRoot = handle.root;
-    updateScene = (s, t) => updateVillage(handle, s, t);
-  } else if (bucket === 2) {
-    const handle = mountCity(scene);
-    sceneRoot = handle.root;
-    updateScene = (s, t) => updateCity(handle, s, t);
-  } else if (bucket === 3) {
+  mountedStage = stage;
+  if (stage === PLANET_STAGE) {
     const handle = mountPlanet(scene);
     sceneRoot = handle.root;
     updateScene = (s, t) => updatePlanet(handle, s, t);
-  } else {
+  } else if (stage === UNIVERSE_STAGE) {
     const handle = mountUniverse(scene);
     sceneRoot = handle.root;
     updateScene = (s, t) => updateUniverse(handle, s, t);
+  } else {
+    const handle = mountSettlement(scene, phase);
+    sceneRoot = handle.root;
+    updateScene = (s, t) => updateSettlement(handle, s, t);
   }
 }
 
@@ -144,10 +142,6 @@ let resourceRowIds: ResourceId[] = [];
 const resourceValueRefs = new Map<ResourceId, HTMLSpanElement>();
 const resourceRowRefs = new Map<ResourceId, HTMLDivElement>();
 let happinessNoteRef: HTMLSpanElement | null = null;
-/** Balance ending's threshold — shown as a meter so "why do I need wonder" has a visible answer. */
-const WONDER_GOAL = RESEARCH.balancedUniverse.wonderRequired!;
-let wonderMeterRef: HTMLDivElement | null = null;
-let wonderMeterFillRef: HTMLDivElement | null = null;
 let darknessIndicatorRef: HTMLDivElement | null = null;
 
 function formatResourceValue(id: ResourceId, value: number): string {
@@ -163,8 +157,6 @@ function rebuildResourcePanel(state: GameState): void {
   resourceValueRefs.clear();
   resourceRowRefs.clear();
   happinessNoteRef = null;
-  wonderMeterRef = null;
-  wonderMeterFillRef = null;
   resourceRowIds = (Object.keys(state.resources) as ResourceId[]).filter(
     (id) => !state.hiddenResources.includes(id)
   );
@@ -184,18 +176,6 @@ function rebuildResourcePanel(state: GameState): void {
     resourcePanel.appendChild(row);
     resourceValueRefs.set(id, value);
     resourceRowRefs.set(id, row);
-
-    // Wonder is the Balance ending's currency (research.ts's
-    // balancedUniverse.wonderRequired) — a meter under its row makes that
-    // legible instead of it just being a number that goes up.
-    if (id === 'wonder') {
-      wonderMeterRef = document.createElement('div');
-      wonderMeterRef.className = 'wonder-meter';
-      wonderMeterFillRef = document.createElement('div');
-      wonderMeterFillRef.className = 'wonder-meter-fill';
-      wonderMeterRef.appendChild(wonderMeterFillRef);
-      resourcePanel.appendChild(wonderMeterRef);
-    }
   }
 
   // Cosmic Age (the final era): the endgame goal ("eliminate darkness via
@@ -222,10 +202,6 @@ function patchResourcePanel(state: GameState): void {
       happinessNoteRef.classList.toggle('visible', low);
     }
   }
-  if (wonderMeterFillRef) {
-    const fraction = Math.min(1, state.resources.wonder / WONDER_GOAL);
-    wonderMeterFillRef.style.width = `${(fraction * 100).toFixed(1)}%`;
-  }
   if (darknessIndicatorRef) {
     const eliminated = Math.round((1 - state.darkness) * 100);
     const branch = state.research.includes('darknessPreservation') ? 'Preserve' : 'Eliminate';
@@ -248,7 +224,7 @@ function rebuildBuildingButtons(snapshot: GameState): void {
   // wrong button.
   const buttons = buildingButtons.querySelectorAll<HTMLButtonElement>('button.building-button');
   buildingButtonRefs = (Object.keys(BUILDINGS) as BuildingId[])
-    .filter((id) => isBuildingUnlocked(snapshot, id))
+    .filter((id) => isBuildingVisible(snapshot, id))
     .map((id, i) => ({
       id,
       button: buttons[i]!,
@@ -342,13 +318,29 @@ function structureSignature(state: GameState): string {
 
 let lastStructureSignature = '';
 
+// Reported bug: the background sometimes blinks. totalLightOutput is exact
+// from tick to tick, but it can step sharply at a tick boundary whenever a
+// per-tick resolution flips (an energy/fuel/exotic ratio crossing 1, an
+// event starting/ending) - smooth, continuous gameplay maths still produces
+// a discrete jump at the moment it's sampled. Easing a separate
+// display-only value toward the real total removes the visual snap without
+// touching any gameplay threshold (those all keep reading totalLightOutput
+// directly). EASE_RATE is per animation frame, not per tick, so it adapts
+// to refresh rate rather than the fixed 5Hz sim step.
+let displayLight: number | null = null;
+const LIGHT_EASE_RATE = 0.12;
+
 // Visual scene (sun/moon/clouds/sky) runs every animation frame so motion is
 // smooth at display refresh rate, independent of the 5Hz sim tick.
 function renderVisuals(renderState: GameState, totalLight: number): void {
   ensureSceneMounted(renderState.phase);
-  updateBackground(backgroundHandle, renderState, totalLight);
-  updateScene(renderState, totalLight);
-  applyTheme(renderState, totalLight);
+  // First call (or a restart, which recreates `state` but not this module-
+  // level value) snaps straight to the real total instead of easing up from
+  // 0 - the easing is for smoothing tick-to-tick jumps, not for a fade-in on load.
+  displayLight = displayLight === null ? totalLight : displayLight + (totalLight - displayLight) * LIGHT_EASE_RATE;
+  updateBackground(backgroundHandle, renderState, displayLight);
+  updateScene(renderState, displayLight);
+  applyTheme(renderState, displayLight);
 }
 
 // Panels (resources/buttons/research/events/ending) only need to
@@ -379,7 +371,6 @@ function advance(): void {
   next = tickEvents(next, Math.random);
   next = applyHappiness(next);
   next = applyDarkness(next);
-  next = applyWonder(next);
   next = resolveEnding(next);
   setState(next);
 }

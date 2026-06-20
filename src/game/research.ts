@@ -25,19 +25,16 @@ export interface ResearchCard {
    * of one undifferentiated research list.
    */
   branch?: 'eliminate' | 'preserve';
-  /** Minimum accumulated wonder required to buy this card, on top of `requires`. */
-  wonderRequired?: number;
   /** Minimum owned count of a building required to buy this card, on top of `requires`. */
   requiresBuilding?: { id: BuildingId; count: number };
+  /** Plain-language explanation of what this card does, shown on its card (ui/cards.ts) for cards whose effect isn't self-evident from the mechanical fields. */
+  description?: string;
 }
 
 /**
  * One progression card per era, each requiring the previous era's card and
  * unlocking that era's secondary (power/production) building — together
- * they form the tech spine spanning Fire Age through Cosmic Age. Artificial
- * Sleep softens (doesn't remove) the happiness hit from harsh lights and
- * power plants (happiness.ts) - foreshadows Ending 1's "population enters
- * permanent artificial sleep": numbed to the harm, not freed of it.
+ * they form the tech spine spanning Fire Age through Cosmic Age.
  *
  * The Cosmic Age (15) ends in two mutually exclusive-in-spirit branches,
  * tagged so the UI (ui/cards.ts) can label them. Eliminate chips away a
@@ -55,6 +52,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     phase: 1,
     lumenMultiplier: 1.2,
     unlocks: ['torch'],
+    description: 'Tame fire into a portable light - unlocks the Torch.',
   },
   oilExtraction: {
     id: 'oilExtraction',
@@ -64,6 +62,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     phase: 2,
     lumenMultiplier: 1.18,
     unlocks: ['oilLamp'],
+    description: 'Refine crude oil into lamp fuel, brighter and steadier than open flame.',
   },
   gasDistribution: {
     id: 'gasDistribution',
@@ -73,6 +72,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     phase: 3,
     lumenMultiplier: 1.2,
     unlocks: ['gasWorks'],
+    description: 'Pipe town gas to every lamp - unlocks Gas Works, which feeds your Gas Lamps fuel.',
   },
   electricLighting: {
     id: 'electricLighting',
@@ -82,6 +82,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     phase: 4,
     lumenMultiplier: 1.25,
     unlocks: ['powerPlant'],
+    description: 'Harness electricity - unlocks the Power Plant, the first energy source for electric lights.',
   },
   highVoltageTransmission: {
     id: 'highVoltageTransmission',
@@ -91,6 +92,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     phase: 5,
     lumenMultiplier: 1.3,
     unlocks: ['transformerStation'],
+    description: 'Move power over long distances with minimal loss - unlocks the Transformer Station.',
   },
   semiconductorPhysics: {
     id: 'semiconductorPhysics',
@@ -100,6 +102,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     phase: 6,
     lumenMultiplier: 1.35,
     unlocks: ['chipFactory'],
+    description: 'Mass-produce semiconductors - unlocks the Chip Factory, which builds materials for everything that follows.',
   },
   nuclearEngineering: {
     id: 'nuclearEngineering',
@@ -109,6 +112,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     phase: 7,
     lumenMultiplier: 1.4,
     unlocks: ['nuclearReactor'],
+    description: 'Split the atom for power - unlocks the Nuclear Reactor, a massive energy source for the grid.',
   },
   fusionContainment: {
     id: 'fusionContainment',
@@ -118,6 +122,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     phase: 8,
     lumenMultiplier: 1.4,
     unlocks: ['fusionReactor'],
+    description: 'Contain a sustained fusion reaction - unlocks the Fusion Reactor.',
   },
   coldFusionTheory: {
     id: 'coldFusionTheory',
@@ -127,6 +132,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     phase: 9,
     lumenMultiplier: 1.3,
     unlocks: ['compactFusionFactory'],
+    description: 'Shrink fusion down to factory scale - unlocks the Compact Fusion Factory.',
   },
   // Orbital Construction unlocks both Orbital Age buildings, but Orbital
   // Mirror keeps its existing special unlock rule (progression.ts): research
@@ -140,6 +146,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     phase: 10,
     lumenMultiplier: 1.5,
     unlocks: ['orbitalMirror', 'spaceElevator'],
+    description: 'Leave the ground - unlocks the Space Elevator and the Orbital Mirror (which also needs the planet fully lit first).',
   },
   stellarEngineering: {
     id: 'stellarEngineering',
@@ -149,6 +156,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     phase: 11,
     lumenMultiplier: 1.4,
     unlocks: ['asteroidMining'],
+    description: 'Engineer at stellar scale - unlocks Asteroid Mining for raw materials from space.',
   },
   megastructureEngineering: {
     id: 'megastructureEngineering',
@@ -158,6 +166,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     phase: 12,
     lumenMultiplier: 1.4,
     unlocks: ['swarmFabricator'],
+    description: 'Build structures the size of orbits - unlocks the Swarm Fabricator, seed of the Dyson Sphere.',
   },
   interstellarLogistics: {
     id: 'interstellarLogistics',
@@ -167,6 +176,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     phase: 13,
     lumenMultiplier: 1.3,
     unlocks: ['stellarConstructor'],
+    description: 'Move materials and energy between star systems - unlocks the Stellar Constructor.',
   },
   blackHolePhysics: {
     id: 'blackHolePhysics',
@@ -176,6 +186,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     phase: 14,
     lumenMultiplier: 1.3,
     unlocks: ['blackHoleHarvester'],
+    description: 'Tap a black hole for power - unlocks the Black Hole Harvester.',
   },
   universalComputation: {
     id: 'universalComputation',
@@ -185,6 +196,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     phase: 15,
     lumenMultiplier: 1.2,
     unlocks: ['realityFoundry'],
+    description: 'Compute reality itself into being light - unlocks the Reality Foundry.',
   },
   artificialSleep: {
     id: 'artificialSleep',
@@ -192,6 +204,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     cost: 1200000,
     requires: ['semiconductorPhysics'],
     phase: 6,
+    description: 'Numbs the population to the glare of harsh lights and power plants - softens (but does not remove) their happiness penalty. Foreshadows Ending 1: a civilization numbed to the harm, not freed of it.',
   },
   eliminateShadows: {
     id: 'eliminateShadows',
@@ -201,6 +214,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     phase: 15,
     darknessDelta: -0.2,
     branch: 'eliminate',
+    description: 'First step of the Eliminate branch: push back the dark corners. One of five cards that together fully eliminate darkness -> Infinite Light ending.',
   },
   illuminateOceans: {
     id: 'illuminateOceans',
@@ -210,6 +224,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     phase: 15,
     darknessDelta: -0.2,
     branch: 'eliminate',
+    description: 'Light the ocean depths - another slice of darkness erased.',
   },
   illuminateNights: {
     id: 'illuminateNights',
@@ -219,6 +234,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     phase: 15,
     darknessDelta: -0.2,
     branch: 'eliminate',
+    description: 'Banish night itself - the sky never goes dark again.',
   },
   illuminateDeepSpace: {
     id: 'illuminateDeepSpace',
@@ -228,6 +244,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     phase: 15,
     darknessDelta: -0.2,
     branch: 'eliminate',
+    description: 'Push light out past the stars, into the empty space between them.',
   },
   blackHoleIllumination: {
     id: 'blackHoleIllumination',
@@ -237,6 +254,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     phase: 15,
     darknessDelta: -0.2, // brings the five Eliminate cards' total to -1: darkness fully eliminated -> Infinite Light ending
     branch: 'eliminate',
+    description: 'The last dark thing in the universe, lit. Completes the Eliminate branch: darkness fully gone -> Infinite Light ending.',
   },
   // Preserve branch: instead of eliminating the rest, the player chooses to
   // protect it - the path toward Ending 2 (Balance) rather than Ending 1.
@@ -248,6 +266,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     phase: 15,
     darknessDelta: 0.3,
     branch: 'preserve',
+    description: 'Choose to protect what darkness remains instead of erasing it. First step of the Preserve branch, toward the Balance ending.',
   },
   wonderStudies: {
     id: 'wonderStudies',
@@ -256,10 +275,9 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     requires: ['darknessPreservation'],
     phase: 15,
     branch: 'preserve',
+    description: 'Study why an unlit sky still matters. Bridges Darkness Preservation to the Balance ending.',
   },
-  // The Balance ending's final card - also requires having actually
-  // accumulated wonder (not just the research chain), so the player has to
-  // have been nurturing darkness/wonder, not just unlocking cards in order.
+  // The Balance ending's final card - the capstone of the Preserve chain.
   balancedUniverse: {
     id: 'balancedUniverse',
     name: 'Balanced Universe',
@@ -268,7 +286,7 @@ export const RESEARCH: Record<ResearchId, ResearchCard> = {
     phase: 15,
     darknessDelta: 0.5, // restores night/shadows/eclipses - the Balance ending
     branch: 'preserve',
-    wonderRequired: 50,
+    description: 'Commit to balance: restore the night, the shadows, the eclipses. The universe keeps some darkness on purpose.',
   },
 };
 
@@ -287,7 +305,6 @@ export function availableResearch(state: GameState): ResearchCard[] {
       card.phase <= state.phase &&
       !state.research.includes(card.id) &&
       card.requires.every((id) => state.research.includes(id)) &&
-      state.resources.wonder >= (card.wonderRequired ?? 0) &&
       (!card.requiresBuilding || state.buildings[card.requiresBuilding.id] >= card.requiresBuilding.count)
   );
 }

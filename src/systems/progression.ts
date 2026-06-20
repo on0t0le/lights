@@ -63,6 +63,33 @@ const UNLOCK_REQUIREMENT: Record<BuildingId, null | 'researchOnly'> = ERAS.reduc
   {} as Record<BuildingId, null | 'researchOnly'>
 );
 
+/** Eras' light sources only (not secondaries) — the set of buildings Part 4's obsolescence rule can hide. */
+const LIGHT_SOURCE_IDS = new Set(ERAS.map((era) => era.lightSource));
+
+/**
+ * How many eras a light source can lag behind the player's current era
+ * before its buy button is hidden (reported request: keep candles around
+ * while on Gas lamps, but not once on Electric). Secondaries (Gas Works,
+ * Power Plant, etc.) are never hidden — they're the supply chain, not a
+ * cosmetic light choice, and disappearing would orphan their resource flow.
+ */
+const OBSOLETE_GAP = 2;
+
+/**
+ * True once a light source is far enough behind the current era that
+ * keeping it in the buy list is just clutter (its lumen output is
+ * negligible next to the current tier, and the player has long since moved
+ * on). Owned units keep producing — this only hides the *buy* button.
+ */
+function isObsoleteLight(state: GameState, id: BuildingId): boolean {
+  return LIGHT_SOURCE_IDS.has(id) && BUILDINGS[id].phase <= state.phase - OBSOLETE_GAP;
+}
+
+/** Unlocked AND not an obsolete light source — what actually belongs in the buy list (ui/buttons.ts, main.ts's rebuildBuildingButtons). */
+export function isBuildingVisible(state: GameState, id: BuildingId): boolean {
+  return isBuildingUnlocked(state, id) && !isObsoleteLight(state, id);
+}
+
 export function isBuildingUnlocked(state: GameState, id: BuildingId): boolean {
   if (state.phase < BUILDINGS[id].phase) {
     return false;
@@ -109,8 +136,7 @@ interface EraTrigger {
  * A few transitions also reveal a previously hidden resource (state.ts's
  * hiddenForEra), staged to when that resource starts mattering: fuel with
  * the Gas Age, materials with the Nuclear Age, exotic matter with the Fusion
- * Age. Wonder is visible from the very start (issue #3) and is never staged
- * here.
+ * Age.
  */
 function boughtEraResearch(state: GameState, era: number): boolean {
   return state.research.includes(ERA_RESEARCH[era]!);

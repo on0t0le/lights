@@ -53,10 +53,15 @@ describe('BUILDINGS catalog', () => {
     }
   });
 
-  test('Gas Age through Nuclear Age lights consume energy', () => {
-    for (const id of ['gasLamp', 'incandescentBulb', 'arcLamp', 'ledLamp', 'nuclearLightGrid'] as const) {
+  test('Electric Age through Nuclear Age lights consume energy', () => {
+    for (const id of ['incandescentBulb', 'arcLamp', 'ledLamp', 'nuclearLightGrid'] as const) {
       expect(BUILDINGS[id].energyConsumedPerUnit).toBeGreaterThan(0);
     }
+  });
+
+  test('Gas Lamp consumes fuel directly instead of energy (Gas Age has no power grid yet)', () => {
+    expect(BUILDINGS.gasLamp.energyConsumedPerUnit).toBe(0);
+    expect(BUILDINGS.gasLamp.fuelConsumedPerUnit).toBeGreaterThan(0);
   });
 
   test('Fusion Age through Cosmic Age lights require exotic matter reserve instead of energy', () => {

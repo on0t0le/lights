@@ -211,8 +211,11 @@ export function updateBackground(handle: BackgroundHandle, state: GameState, tot
   // Multiplied by darkness (systems/darkness.ts) on top of the local night/
   // light fade, so over-illuminating the universe dims stars even during a
   // dark local night - the felt consequence of the dynamic darkness model.
+  // No display:none toggle here (issue #5 - reported background blink):
+  // popping the whole group in/out right at the 0.01 threshold reads as a
+  // flicker. Opacity alone fades stars out smoothly; near-zero opacity is
+  // visually indistinguishable from `display:none` anyway.
   const visibility = starVisibility(state.dayNightClock, totalLight, state.phase) * state.darkness;
-  handle.starGroup.style.display = visibility > 0.01 ? '' : 'none';
   for (const star of handle.starCircles) {
     star.setAttribute('opacity', visibility.toFixed(2));
   }

@@ -128,18 +128,6 @@ describe('tick', () => {
     expect(next.resources.lumens).toBeCloseTo(before + 0.5 * 1.12, 5);
   });
 
-  // Issue #3: wonder is visible and contributing from era 1, not just a
-  // hidden counter that becomes critical at era 11 - a weak log bonus makes
-  // it worth watching well before it's an ending condition.
-  test('wonder stockpile raises lumen output via a weak log bonus', () => {
-    const built = withFullHappiness(buyBuilding(addResource(createInitialState(), 'lumens', 100), 'campfire'));
-    const state = { ...built, resources: { ...built.resources, wonder: 999 } };
-    const before = state.resources.lumens;
-    const next = tick(state);
-    // wonderBonus = 1 + 0.03 * log10(1 + 999) = 1 + 0.03 * 3 = 1.09
-    expect(next.resources.lumens).toBeCloseTo(before + 0.5 * 1.09, 5);
-  });
-
   // Issue #9: late-game megastructures (era 10+) carry an upkeep cost in
   // lumens per owned unit, so unchecked building eventually plateaus instead
   // of running away forever - the lumens sink deducts after production but

@@ -70,22 +70,6 @@ body {
   visibility: visible;
 }
 
-/* Wonder meter (Balance ending's currency, research.ts's balancedUniverse
-   threshold) - a visible fill bar answers "why do I need wonder". */
-.wonder-meter {
-  height: 6px;
-  border-radius: 3px;
-  background: var(--panel-border);
-  overflow: hidden;
-  margin: 0.25rem 0 0.5rem;
-}
-
-.wonder-meter-fill {
-  height: 100%;
-  width: 0%;
-  background: var(--accent-warm);
-}
-
 /* Remove-Darkness phase (7) goal readout. */
 .darkness-indicator {
   font-size: 0.85rem;
@@ -93,9 +77,12 @@ body {
   margin-top: 0.25rem;
 }
 
+/* Grid (not flex-wrap) so every tile is the same size regardless of how much
+   text it carries - a flex-wrap row used to reflow/resize as the volatile
+   status line (.status below) appeared and disappeared per tick. */
 .buildings {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 0.75rem;
   padding: 1rem;
 }
@@ -104,7 +91,7 @@ body {
    relationship (Solar Farm/Power Plant feed the lights that fill the
    planet, not the other way around) is visible instead of silent. */
 .power-summary {
-  flex-basis: 100%;
+  grid-column: 1 / -1;
   font-size: 0.85rem;
   color: var(--text-secondary);
 }
@@ -121,12 +108,24 @@ body {
   padding: 0.6rem 0.9rem;
   cursor: pointer;
   text-align: left;
-  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  /* Sized for name + cost + production line + one status line, so a tile
+     never resizes just because its status text changed (issue #8). */
+  min-height: 6.5rem;
 }
 
 .building-button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* Resource-starved (fuel/exotic/materials/lumens/power) but not necessarily
+   :disabled - a visibly muted look distinct from the hard-disabled state,
+   covering every "you can't run this yet" case (issue #10). */
+.building-button.unmet {
+  opacity: 0.6;
+  border-color: var(--text-secondary);
 }
 
 .building-button .name {
@@ -140,6 +139,17 @@ body {
   font-size: 0.8rem;
 }
 
+/* Reserved line for the volatile status phrase ("Needs power" / "Dimmed -
+   N%" / "Idle - no fuel" / etc, ui/buttons.ts) - always present (even empty)
+   so its text changing never grows/shrinks the tile (issue #8). */
+.building-button .status {
+  display: block;
+  min-height: 1.1rem;
+  color: var(--accent-warm);
+  font-size: 0.8rem;
+  margin-top: auto;
+}
+
 /* Mid-game (City): the spec calls for buttons that start to blend together
    as the interface washes out - lower contrast between button and panel. */
 .phase-city .building-button {
@@ -149,8 +159,8 @@ body {
 
 .research-panel,
 .event-panel {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 0.75rem;
   padding: 1rem;
 }

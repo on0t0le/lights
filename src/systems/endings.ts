@@ -10,8 +10,8 @@ import type { GameState } from '../state';
  * ending can be reached or locked out by building lights alone.
  *
  * Ending 2 (Balance, the "Preserve" branch) takes priority - it's an
- * explicit research purchase (Balanced Universe) that restores darkness/
- * wonder, so it should win even if both capstones are technically owned.
+ * explicit research purchase (Balanced Universe) that restores darkness,
+ * so it should win even if both capstones are technically owned.
  *
  * Ending 1 (Infinite Light, the "Eliminate" branch) fires once Black Hole
  * Illumination - the capstone at the end of the five-card Illuminate chain

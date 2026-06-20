@@ -136,15 +136,18 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     phase: 2,
     happinessPerUnit: 0.0012,
   },
-  // Era 3 — Gas Age (Village). Energy upkeep begins here.
+  // Era 3 — Gas Age (Village). Burns fuel piped straight from Gas Works -
+  // not energy, which doesn't exist yet (the first generator, Power Plant,
+  // is Electric Age). This keeps Gas Age self-contained: build a gas lamp
+  // any time, it just sits idle/dim until a Gas Works is feeding it fuel.
   gasLamp: {
     name: 'Gas Lamp',
     baseCost: 300,
     costGrowth: 1.13,
     lumensPerUnit: 12,
-    energyConsumedPerUnit: 1,
+    energyConsumedPerUnit: 0,
     energyProducedPerUnit: 0,
-    fuelConsumedPerUnit: 0,
+    fuelConsumedPerUnit: 1,
     fuelProducedPerUnit: 0,
     materialsPerUnit: 0,
     exoticRequiredPerUnit: 0,
@@ -419,7 +422,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     happinessPerUnit: -0.02,
   },
   // Research-gated (Orbital Construction). Owning one triggers Orbital Age
-  // -> Stellar Age, which also reveals wonder.
+  // -> Stellar Age.
   spaceElevator: {
     name: 'Space Elevator',
     baseCost: 2500000000,

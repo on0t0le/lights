@@ -4,13 +4,11 @@ import { nightAmount, dayAmount } from '../systems/daynight';
 export interface EventEffect {
   happinessPenalty: number;
   lumenProductivityMult: number;
-  wonderBonus: number;
 }
 
 export const NEUTRAL_EFFECT: EventEffect = {
   happinessPenalty: 0,
   lumenProductivityMult: 1,
-  wonderBonus: 0,
 };
 
 export interface EventDef {
@@ -97,7 +95,7 @@ export const EVENTS: Record<EventId, EventDef> = {
     timeOfDay: 'night',
     weight: 1,
     durationTicks: 20,
-    effect: { wonderBonus: 0.1 },
+    effect: { lumenProductivityMult: 1.05 },
   },
   northernLights: {
     id: 'northernLights',
@@ -108,7 +106,7 @@ export const EVENTS: Record<EventId, EventDef> = {
     timeOfDay: 'night',
     weight: 1,
     durationTicks: 20,
-    effect: { wonderBonus: 0.1 },
+    effect: { lumenProductivityMult: 1.05 },
   },
   lunarEclipse: {
     id: 'lunarEclipse',
@@ -119,7 +117,7 @@ export const EVENTS: Record<EventId, EventDef> = {
     timeOfDay: 'night',
     weight: 1,
     durationTicks: 15,
-    effect: { wonderBonus: 0.3 },
+    effect: { lumenProductivityMult: 1.1 },
   },
   // --- Era 10+ (Orbital Age on): the earth/sky events above no longer make
   // sense once the player is off the ground - these take their place. Any time. ---
@@ -139,7 +137,7 @@ export const EVENTS: Record<EventId, EventDef> = {
     phase: 10,
     weight: 1,
     durationTicks: 15,
-    effect: { wonderBonus: 0.4 },
+    effect: { lumenProductivityMult: 1.1 },
   },
   cosmicDust: {
     id: 'cosmicDust',
@@ -148,7 +146,7 @@ export const EVENTS: Record<EventId, EventDef> = {
     phase: 10,
     weight: 1,
     durationTicks: 25,
-    effect: { wonderBonus: 0.1 },
+    effect: { lumenProductivityMult: 1.05 },
   },
 };
 
@@ -204,9 +202,6 @@ export function effectSummary(effect: Partial<EventEffect>): string {
   if (effect.lumenProductivityMult !== undefined && effect.lumenProductivityMult !== 1) {
     const pct = Math.round((effect.lumenProductivityMult - 1) * 100);
     parts.push(`Lumen production ${pct >= 0 ? '+' : ''}${pct}%`);
-  }
-  if (effect.wonderBonus) {
-    parts.push(`Wonder ${effect.wonderBonus >= 0 ? '+' : ''}${effect.wonderBonus}`);
   }
   return parts.join(' · ');
 }

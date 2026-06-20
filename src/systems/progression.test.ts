@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { isBuildingUnlocked, currentPhase, advancePhase } from './progression';
+import { isBuildingUnlocked, isBuildingVisible, currentPhase, advancePhase } from './progression';
 import { createInitialState, type ResourceId } from '../state';
 
 describe('isBuildingUnlocked', () => {
@@ -52,6 +52,36 @@ describe('isBuildingUnlocked', () => {
   test('Space Elevator (the other Orbital Construction unlock) has no fully-lit requirement', () => {
     const state = { ...createInitialState(), phase: 10, research: ['orbitalConstruction' as const] };
     expect(isBuildingUnlocked(state, 'spaceElevator')).toBe(true);
+  });
+});
+
+// Reported request: once on Electric lights, candles/campfires are pointless
+// clutter in the buy list. Light sources hide once they're OBSOLETE_GAP (2)
+// eras behind; secondaries never hide (they're the supply chain, not a
+// cosmetic light pick).
+describe('isBuildingVisible', () => {
+  test('the current era light source is visible', () => {
+    expect(isBuildingVisible({ ...createInitialState(), phase: 3 }, 'gasLamp')).toBe(true);
+  });
+
+  test('the previous era light source is still visible (one era lag is fine)', () => {
+    expect(isBuildingVisible({ ...createInitialState(), phase: 3 }, 'candle')).toBe(true);
+  });
+
+  test('a light source two or more eras behind is hidden', () => {
+    expect(isBuildingVisible({ ...createInitialState(), phase: 4 }, 'campfire')).toBe(false);
+    expect(isBuildingVisible({ ...createInitialState(), phase: 4 }, 'candle')).toBe(false);
+  });
+
+  test('secondary (production) buildings stay visible no matter how far behind they are', () => {
+    const state = { ...createInitialState(), phase: 7, research: ['gasDistribution' as const] };
+    expect(isBuildingVisible(state, 'gasWorks')).toBe(true);
+  });
+
+  test('an obsolete light is still unlocked, just not visible (owned units keep producing)', () => {
+    const state = { ...createInitialState(), phase: 4 };
+    expect(isBuildingUnlocked(state, 'campfire')).toBe(true);
+    expect(isBuildingVisible(state, 'campfire')).toBe(false);
   });
 });
 

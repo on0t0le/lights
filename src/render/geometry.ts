@@ -2,7 +2,7 @@
  * Shared canvas geometry. Every renderer (background + the four phase
  * scenes) draws onto the same `viewBox`, so they all need to agree on
  * where the ground is - otherwise buildings drawn by one renderer "float"
- * above the horizon drawn by another (see village.ts/city.ts history).
+ * above the horizon drawn by another (see settlement.ts).
  */
 export const WIDTH = 800;
 export const HEIGHT = 300;

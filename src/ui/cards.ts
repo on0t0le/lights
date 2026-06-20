@@ -12,8 +12,8 @@ const BRANCH_LABEL: Record<NonNullable<ResearchCard['branch']>, string> = {
 /**
  * Human-readable summary of what buying this card actually gives - mirrors
  * events.ts's effectSummary, built from the same fields that drive the
- * mechanics (lumenMultiplier, unlocks, darknessDelta, branch, wonderRequired)
- * so "what will this give me" never needs guessing.
+ * mechanics (lumenMultiplier, unlocks, darknessDelta, branch) so "what will
+ * this give me" never needs guessing.
  */
 function cardEffectSummary(card: ResearchCard): string {
   const parts: string[] = [];
@@ -30,9 +30,6 @@ function cardEffectSummary(card: ResearchCard): string {
   if (card.darknessDelta) {
     const pct = Math.round(card.darknessDelta * 100);
     parts.push(`Darkness ${pct >= 0 ? '+' : ''}${pct}%`);
-  }
-  if (card.wonderRequired) {
-    parts.push(`Requires ${card.wonderRequired} wonder`);
   }
   return parts.join(' · ');
 }
@@ -63,6 +60,13 @@ export function renderResearchCard(
   cost.textContent = `Cost: ${formatNumber(displayCost)} lumens`;
 
   button.append(name, cost);
+
+  if (card.description) {
+    const description = document.createElement('span');
+    description.className = 'meta description';
+    description.textContent = card.description;
+    button.append(description);
+  }
 
   const summary = cardEffectSummary(card);
   if (summary) {

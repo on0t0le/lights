@@ -8,7 +8,7 @@ import { mix } from '../render/color';
  * later phases (Planet/Space/Remove Darkness) can keep extending the same
  * knob instead of rewriting styles.
  */
-const MID_GAME_LIGHT_SCALE = 5000; // "this is a lot of light" reference point, shared loosely with wonder.ts's STAR_VISIBILITY_SCALE
+const MID_GAME_LIGHT_SCALE = 5000; // "this is a lot of light" reference point
 
 /**
  * Late-game wash references Orbital Age+ light levels - far beyond

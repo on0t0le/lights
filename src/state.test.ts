@@ -19,10 +19,7 @@ describe('createInitialState', () => {
     expect(state.eventCooldownTicks).toBe(0);
   });
 
-  // Issue #3: wonder is visible from era 1 (it already accumulates early -
-  // it was only ever the UI hiding it), unlike fuel/materials/exotic which
-  // genuinely don't matter yet.
-  test('starts in era 1 with fuel, materials, and exotic hidden, but wonder visible', () => {
+  test('starts in era 1 with fuel, materials, and exotic hidden', () => {
     const state = createInitialState();
     expect(state.phase).toBe(1);
     expect(state.hiddenResources.sort()).toEqual(['exotic', 'fuel', 'materials']);
@@ -49,7 +46,7 @@ describe('ERAS', () => {
 });
 
 describe('hiddenForEra', () => {
-  test('reveals fuel, materials, and exotic in staged order as eras advance; wonder is never hidden', () => {
+  test('reveals fuel, materials, and exotic in staged order as eras advance', () => {
     expect(hiddenForEra(1).sort()).toEqual(['exotic', 'fuel', 'materials']);
     expect(hiddenForEra(3).sort()).toEqual(['exotic', 'materials']);
     expect(hiddenForEra(7).sort()).toEqual(['exotic']);

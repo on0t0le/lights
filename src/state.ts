@@ -3,7 +3,7 @@
  * game/ and systems/ — nothing here is mutated in place.
  */
 
-export type ResourceId = 'lumens' | 'energy' | 'materials' | 'happiness' | 'wonder' | 'fuel' | 'exotic';
+export type ResourceId = 'lumens' | 'energy' | 'materials' | 'happiness' | 'fuel' | 'exotic';
 
 export type BuildingId =
   | 'campfire'
@@ -119,10 +119,7 @@ export const FINAL_ERA = ERAS.length;
  * civilization's era makes them relevant: fuel arrives with the Gas Age
  * (era 3), materials with the Nuclear Age (era 7, its stockpile feeds the
  * one-time megastructure costs from the Orbital Age on), and exotic matter
- * with the Fusion Age (era 8). Wonder is visible from the very start (issue
- * #3): it already accumulates from era 1 and gives a weak lumen bonus
- * (automation.ts), so hiding it until era 11 just hid a meter the player
- * was already earning toward.
+ * with the Fusion Age (era 8).
  */
 export function hiddenForEra(phase: number): ResourceId[] {
   const hidden: ResourceId[] = [];
@@ -163,7 +160,6 @@ export function createInitialState(): GameState {
       energy: 0,
       materials: 0,
       happiness: 0.5,
-      wonder: 0,
       fuel: 0,
       exotic: 0,
     },
